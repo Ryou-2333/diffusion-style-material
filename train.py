@@ -56,7 +56,7 @@ if __name__ == '__main__':
         accelerator             = opt.accelerator,
         precision               = '32',
         enable_checkpointing    = False,
-        strategy                = 'ddp_find_unused_parameters_true' if device_num > 1 else 'auto',
+        strategy                = 'ddp' if device_num > 1 else 'auto',
     )
 
     # Resume w/ and w/o training states
