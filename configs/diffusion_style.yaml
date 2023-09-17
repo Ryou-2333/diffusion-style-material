@@ -60,5 +60,5 @@ dataloader:
   # RandomNoiseDataLoader
   params:
     seed: 12345
-    count: 50000
+    count: 1000000
     dim: 512
