@@ -67,23 +67,24 @@ class StyleLatentDiffusion(LatentDiffusion):
             c = getattr(self.cond_stage_model, self.cond_stage_forward)(c)
         return c
 
-    def p_losses_exp(self, x_start, cond, t, noise=None):
+    def p_losses(self, x_start, cond, t, noise=None):
         # loss computation is refined according to sdxl
         noise = default(noise, lambda: torch.randn_like(x_start))
         x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
         w = append_dims(self.sqrt_recipm1_alphas_cumprod[t] ** -2, x_start.ndim)
+        predict_noise = self.apply_model(x_noisy, t, cond)
         model_output = self.predict_start_from_noise(
             x_t = x_noisy,
             t = t,
-            noise = self.apply_model(x_noisy, t, cond)
+            noise = predict_noise
         )
         loss_dict = {}
         prefix = 'train' if self.training else 'val'
         target = x_start
-        loss = torch.mean(
-            (w * (model_output - target) ** 2).reshape(w.shape[0], -1)
-        )
-        loss_dict.update({f'{prefix}/loss_simple': loss})
+        loss = torch.mean(w * (model_output - target) ** 2)
+        loss_dict.update({f'{prefix}/loss_new': loss})
+        loss_old = self.get_loss(predict_noise, noise)
+        loss_dict.update({f'{prefix}/loss_old': loss_old})
         return loss, loss_dict
 
     @torch.no_grad()

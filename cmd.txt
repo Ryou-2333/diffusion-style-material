@@ -1,1 +1,1 @@
-python train.py --batch_size 64 --config_file configs/diffusion_style.yaml --name diffusion_style --niter 30 --num_threads 64 --device 0,1,2,3
+python train.py --batch_size 64 --config_file configs/mlp.yaml --name cls-mlp --niter 30 --num_threads 64 --device 0,1,2,3

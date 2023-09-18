@@ -14,15 +14,14 @@ from ldm.util import exists
 import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
-import math
-import warnings
+from timm.models.vision_transformer import Mlp
+
 # dummy replace
 def convert_module_to_f16(x):
     pass
 
 def convert_module_to_f32(x):
     pass
-
 
 class AttentionPool1d(nn.Module):
     def __init__(self, temporal_dim: int, embed_dim: int, num_heads: int, output_dim: int = None):
@@ -399,3 +398,54 @@ class AttentionPooledUNet(nn.Module):
             h = module(h, emb, context)
         h = h.type(x.dtype)
         return self.out(h)
+
+class MLPNet(nn.Module):
+    def __init__(
+        self,
+        noise_size : int,
+        context_size : int,
+        depth : int,
+        use_fp16=False,
+    ):
+        super().__init__()
+        self.noise_size = noise_size
+        self.context_size = context_size
+        self.hidden_size = noise_size * 2
+        self.dtype = th.float16 if use_fp16 else th.float32
+
+        self.time_embed_size = self.hidden_size // 4
+        self.time_embed = nn.Sequential(
+            nn.Linear(self.time_embed_size, self.time_embed_size),
+            nn.SiLU(),
+            nn.Linear(self.time_embed_size, self.time_embed_size)
+        )
+
+        context_embed_dim = self.hidden_size // 4
+        self.contex_embed = nn.Sequential(
+            nn.Linear(context_size, context_embed_dim),
+            nn.GELU(approximate="tanh"),
+            nn.Linear(context_embed_dim, context_embed_dim)
+        )
+
+        linear_layer = nn.Sequential(
+            nn.LayerNorm(self.hidden_size, elementwise_affine=False, eps=1e-6),
+            nn.GELU(approximate="tanh"),
+            nn.Linear(self.hidden_size, self.hidden_size, bias=True)
+        )
+
+        layers = [linear_layer for _ in range(depth)]
+        self.hidden_layers = nn.Sequential(*layers)
+
+        self.out = nn.Sequential(
+            nn.LayerNorm(self.hidden_size, elementwise_affine=False, eps=1e-6),
+            nn.SiLU(),
+            nn.Linear(self.hidden_size, noise_size, bias=True),
+        )
+
+    def forward(self, x, timesteps, context):
+        t_emb = timestep_embedding(timesteps, self.time_embed_size, repeat_only=False).unsqueeze(1)
+        t_emb = self.time_embed(t_emb)
+        c_emb = self.contex_embed(context)
+        x_t = th.concat((x, t_emb, c_emb), dim=-1)
+        x_t = self.hidden_layers(x_t)
+        return self.out(x_t)
