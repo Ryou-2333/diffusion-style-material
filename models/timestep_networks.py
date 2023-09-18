@@ -427,13 +427,14 @@ class MLPNet(nn.Module):
             nn.Linear(context_embed_dim, context_embed_dim)
         )
 
-        linear_layer = nn.Sequential(
-            nn.LayerNorm(self.hidden_size, elementwise_affine=False, eps=1e-6),
-            nn.GELU(approximate="tanh"),
-            nn.Linear(self.hidden_size, self.hidden_size, bias=True)
-        )
+        layers = []
+        for _ in range(depth):
+            layers += [  
+                nn.LayerNorm(self.hidden_size, elementwise_affine=False, eps=1e-6),
+                nn.GELU(approximate="tanh"),
+                nn.Linear(self.hidden_size, self.hidden_size) 
+                ]
 
-        layers = [linear_layer for _ in range(depth)]
         self.hidden_layers = nn.Sequential(*layers)
 
         self.out = nn.Sequential(

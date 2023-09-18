@@ -70,8 +70,8 @@ class StyleLatentDiffusion(LatentDiffusion):
     def p_losses_exp(self, x_start, cond, t, noise=None):
         # loss computation is refined according to sdxl
         noise = default(noise, lambda: torch.randn_like(x_start))
-        x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
         w = append_dims(self.sqrt_recipm1_alphas_cumprod[t] ** -2, x_start.ndim)
+        x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
         predict_noise = self.apply_model(x_noisy, t, cond)
         model_output = self.predict_start_from_noise(
             x_t = x_noisy,
@@ -90,9 +90,8 @@ class StyleLatentDiffusion(LatentDiffusion):
     @torch.no_grad()
     def get_input(self, batch, *args, **kwargs):
         image, w = self.style_gan_model.gnerate_render_w(batch)
-        noise = self.encode_first_stage(w).detach()
         cls = self.get_learned_conditioning(image).detach()
-        return [noise, cls]
+        return [w, cls]
     
     @torch.no_grad()
     def generate_image(self, example, batch_size, unconditional_guidance_scale=1., seed=None, reuse_seed=False, steps=20, eta=0):
