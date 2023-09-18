@@ -67,7 +67,7 @@ class StyleLatentDiffusion(LatentDiffusion):
             c = getattr(self.cond_stage_model, self.cond_stage_forward)(c)
         return c
 
-    def p_losses(self, x_start, cond, t, noise=None):
+    def p_losses_exp(self, x_start, cond, t, noise=None):
         # loss computation is refined according to sdxl
         noise = default(noise, lambda: torch.randn_like(x_start))
         x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
