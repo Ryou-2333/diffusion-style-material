@@ -28,7 +28,7 @@ class StyleGANWrapper(pl.LightningModule):
     def generate_maps(self, w):
         w = w.to(self.device)
         w_s = w.repeat([1, self.num_ws, 1])
-        return gnerate_random_render_from_w(self.gen, self.dec, w_s, self.res, None, self.device)
+        return gnerate_random_render_from_w(self.gen, self.dec, w_s, self.res, self.device)
 
 def disabled_train(self):
     """Overwrite model.train with this function to make sure train/eval mode
