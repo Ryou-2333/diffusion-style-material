@@ -36,14 +36,20 @@ def gnerate_random_render(gen, dec, bs, res, device=torch.device('cuda')):
     w_s = gen.mapping(z, None, truncation_psi=1, truncation_cutoff=14)
     light_color, _, scale = set_param(device)
     l_pos = get_rand_light_pos(scale)
-    return generate_render(gen, dec, w_s, light_color, l_pos, scale, res, device)**(2.2), w_s[:,0:1,:]
+    return generate_render(gen, dec, w_s, light_color, l_pos, scale, res, device), w_s[:,0:1,:]
 
 def gnerate_random_render_from_batch(gen, dec, batch, res, device=torch.device('cuda')):
     w_s = gen.mapping(batch, None, truncation_psi=1, truncation_cutoff=14)
     light_color, _, scale = set_param(device)
     l_pos = get_rand_light_pos(scale)
     # full w_s is calculated from primary latent w(1, 512).
-    return generate_render(gen, dec, w_s, light_color, l_pos, scale, res, device)**(2.2), w_s[:,0:1,:]
+    return generate_render(gen, dec, w_s, light_color, l_pos, scale, res, device), w_s[:,0:1,:]
+
+def gnerate_random_render_from_w(gen, dec, w_s, res, device=torch.device('cuda')):
+    light_color, _, scale = set_param(device)
+    l_pos = get_rand_light_pos(scale)
+    # full w_s is calculated from primary latent w(1, 512).
+    return generate_render(gen, dec, w_s, light_color, l_pos, scale, res, device)
 
 def generate_render(gen, dec, w_s, light_color, l_pos, scale, res, device=torch.device('cuda')):
     N, D, R, S = generate_material(gen, dec, w_s, device)

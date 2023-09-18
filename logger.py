@@ -209,17 +209,12 @@ class ImageLogger(Callback):
 
     @rank_zero_only
     def log_local(self, images, global_step, current_epoch, batch_idx, img_idx, is_train):
-        def save_image(img, path, openai=False):
-            if self.rescale:
-                if openai:
-                    img = img * OPENAI_STD + OPENAI_MEAN
-                    img = torch.clamp(img, 0, 1)
-                else:
-                    img = (img + 1.0) / 2.0  # -1,1 -> 0,1; c,h,w
+        def save_image(img, path, gamma=False):
             img = img.permute(1, 2, 0).squeeze(-1)
-            img = img.numpy()
-            img = (img * 255).astype(np.uint8)
-            Image.fromarray(img).save(path)
+            if gamma:
+                img = img**(1/2.2)
+            img = (img*255).clamp(0, 255).to(torch.uint8)
+            Image.fromarray(img.cpu().numpy()).save(path)
 
         for k in images:
             dirpath = os.path.join(self.save_path, k)

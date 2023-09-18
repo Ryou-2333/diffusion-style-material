@@ -3,7 +3,7 @@ import pytorch_lightning as pl
 import numpy as np
 import os
 from ldm.util import instantiate_from_config
-from stylegan_interface import load_generator_decoder, generate_carpaint, gnerate_random_render_from_batch
+from stylegan_interface import load_generator_decoder, gnerate_random_render_from_w, gnerate_random_render_from_batch
 from ldm.models.diffusion.ddpm import LatentDiffusion, extract_into_tensor, default
 from ldm.models.diffusion.dpm_solver import DPMSolverSampler
 
@@ -24,12 +24,11 @@ class StyleGANWrapper(pl.LightningModule):
     
     def gnerate_render_w(self, batch):
         return gnerate_random_render_from_batch(self.gen, self.dec, batch, self.res, device=self.device)
-
             
     def generate_maps(self, w):
         w = w.to(self.device)
         w_s = w.repeat([1, self.num_ws, 1])
-        return generate_carpaint(self.gen, self.dec, w_s, self.res, None, self.device)
+        return gnerate_random_render_from_w(self.gen, self.dec, w_s, self.res, None, self.device)
 
 def disabled_train(self):
     """Overwrite model.train with this function to make sure train/eval mode
