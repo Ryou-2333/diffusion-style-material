@@ -11,8 +11,9 @@ model:
     cond_stage_key: coordinates_bbox
     image_size: 512
     channels: 1
-    concat_mode: true
+    concat_mode: false
     conditioning_key: crossattn
+    parameterization: eps
     cond_stage_trainable: true
     unet_config:
       target: models.timestep_networks.MLPNet

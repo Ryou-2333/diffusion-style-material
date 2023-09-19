@@ -67,24 +67,32 @@ class StyleLatentDiffusion(LatentDiffusion):
             c = getattr(self.cond_stage_model, self.cond_stage_forward)(c)
         return c
 
-    def p_losses_exp(self, x_start, cond, t, noise=None):
-        # loss computation is refined according to sdxl
+    def p_losses(self, x_start, cond, t, noise=None):
         noise = default(noise, lambda: torch.randn_like(x_start))
-        w = append_dims(self.sqrt_recipm1_alphas_cumprod[t] ** -2, x_start.ndim)
         x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
-        predict_noise = self.apply_model(x_noisy, t, cond)
-        model_output = self.predict_start_from_noise(
-            x_t = x_noisy,
-            t = t,
-            noise = predict_noise
-        )
+        model_output = self.apply_model(x_noisy, t, cond)
         loss_dict = {}
         prefix = 'train' if self.training else 'val'
-        target = x_start
-        loss = torch.mean(w * (model_output - target) ** 2)
-        loss_dict.update({f'{prefix}/loss_new': loss})
-        loss_old = self.get_loss(predict_noise, noise)
-        loss_dict.update({f'{prefix}/loss_old': loss_old})
+        if self.parameterization == "x0":
+            target = x_start
+        elif self.parameterization == "eps":
+            target = noise
+        elif self.parameterization == "v":
+            target = self.get_v(x_start, noise, t)
+        else:
+            raise NotImplementedError()
+
+        loss_simple = self.get_loss(model_output, target, mean=False).mean(dim=(1, 2))
+        loss_dict.update({f'{prefix}/loss_simple': loss_simple.mean()})
+        logvar_t = self.logvar[t].to(self.device)
+        loss = loss_simple / torch.exp(logvar_t) + logvar_t
+        loss_dict.update({f'{prefix}/mean': torch.mean(model_output)})
+        loss_dict.update({f'{prefix}/var': torch.var(model_output)})
+        loss = self.l_simple_weight * loss.mean()
+        loss_vlb = self.get_loss(model_output, target, mean=False).mean(dim=(1, 2))
+        loss_vlb = (self.lvlb_weights[t] * loss_vlb).mean()
+        loss += (self.original_elbo_weight * loss_vlb)
+        loss_dict.update({f'{prefix}/loss': loss})
         return loss, loss_dict
 
     @torch.no_grad()
@@ -92,7 +100,7 @@ class StyleLatentDiffusion(LatentDiffusion):
         image, w = self.style_gan_model.gnerate_render_w(batch)
         cls = self.get_learned_conditioning(image).detach()
         return [w, cls]
-    
+
     @torch.no_grad()
     def generate_image(self, example, batch_size, unconditional_guidance_scale=1., seed=None, reuse_seed=False, steps=20, eta=0):
         # set global seed for generation
@@ -112,8 +120,8 @@ class StyleLatentDiffusion(LatentDiffusion):
                                     unconditional_guidance_scale=unconditional_guidance_scale,
                                     unconditional_conditioning=None, eta=eta, x_T=None)
         
-        ws = self.decode_first_stage(samples)
-        img = self.style_gan_model.generate_maps(ws)
+        w = self.decode_first_stage(samples)
+        img = self.style_gan_model.generate_maps(w)
         return img
 
     @torch.no_grad()
@@ -126,8 +134,8 @@ class StyleLatentDiffusion(LatentDiffusion):
                                     shape=(self.channels, self.image_size),
                                     unconditional_guidance_scale=1.,
                                     unconditional_conditioning=cls, eta=0, x_T=None)
-        ws = self.decode_first_stage(samples)
-        img_pred = self.style_gan_model.generate_maps(ws)
+        w = self.decode_first_stage(samples)
+        img_pred = self.style_gan_model.generate_maps(w)
         log = dict()
         log["GT"] = image_gt
         log["Pred"] = img_pred

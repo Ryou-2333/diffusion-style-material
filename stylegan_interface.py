@@ -8,7 +8,7 @@ from training.networks import Generator, MatUnet, weights_init
 from torch_utils import misc
 import PIL.Image
 
-def load_generator_decoder(generator_pth, matunet_pth, use_fp16=False, device=torch.device('cuda')):
+def load_generator(generator_pth, use_fp16=False, device=torch.device('cuda')):
     G_tmp = legacy.load_network_pkl(dnnlib.util.open_url(generator_pth))['G_ema'].to(device)
     init_kwargs_tmp = G_tmp.init_kwargs
     res = init_kwargs_tmp['img_resolution']
@@ -24,8 +24,12 @@ def load_generator_decoder(generator_pth, matunet_pth, use_fp16=False, device=to
 
     gen = Generator(*G_tmp.init_args, **init_kwargs_tmp).eval().requires_grad_(False)
     misc.copy_params_and_buffers(G_tmp, gen, require_all=True)
-    dec = MatUnet(out_c = 8, batch_norm=False, layer_n=5).eval()
     gen = gen.to(device)
+    return gen, res
+
+def load_generator_decoder(generator_pth, matunet_pth, use_fp16=False, device=torch.device('cuda')):
+    gen, res = load_generator(generator_pth, use_fp16, device)
+    dec = MatUnet(out_c = 8, batch_norm=False, layer_n=5).eval()
     dec = dec.to(device)
     dec.apply(weights_init)
     dec.load_state_dict(torch.load(matunet_pth)['MatUnet'])
@@ -97,9 +101,10 @@ def generate_carpaint(gen, dec, w_s, res, l_pos = None, device=torch.device('cud
         l_pos = get_rand_light_pos(scale)
     rens = render_material(N, D, R, S, light_color, l_pos, scale, res, device)
     D = D**(2.2)
-    rens = rens**(2.2)
+    N = N / 2.0 + 0.5 
+    rens = (rens)**(2.2)
     # save seperate maps
-    stacked_image = torch.concat((N, D, R, S, rens), dim=2)
+    stacked_image = torch.concat((N, D, R, S, rens), dim=-1)
     return stacked_image
 
 def generate_random_carpaints(generator_pth, matunet_pth, outdir, num, device=torch.device('cuda')):
@@ -115,19 +120,27 @@ def generate_random_carpaints(generator_pth, matunet_pth, outdir, num, device=to
         stacked_image = generate_carpaint(gen, dec, w, l, res, device)
         PIL.Image.fromarray(stacked_image, 'RGB').save(os.path.join(outdir, f"{i}_maps.png"))
 
-def generate_lanten_w_walk(generator_pth, matunet_pth, outdir, seed_from, seed_to, num, device=torch.device('cuda')):
+def get_meaningful_w(gen, bs=1, z=None, device=torch.device('cuda')):
+    if z is None:
+        z = get_random_noise(bs, gen.z_dim, device)
+    
+    return gen.mapping(z, None, truncation_psi=1, truncation_cutoff=14)[:, 0:1, :]
+    
+def generate_lanten_w_walk(generator_pth, matunet_pth, outdir, bias, num, device=torch.device('cuda')):
     if not os.path.exists(outdir):
         os.makedirs(outdir)
-    
+
     gen, dec, res = load_generator_decoder(generator_pth, matunet_pth, device=device)
-    z = get_random_noise(gen.z_dim, seed=seed_from)
-    w = gen.mapping(z, None, truncation_psi=1, truncation_cutoff=14)   
-    z_t = get_random_noise(gen.z_dim, seed=seed_to)
-    w_t = gen.mapping(z_t, None, truncation_psi=1, truncation_cutoff=14) 
+    w_f = get_meaningful_w(gen)
+    noise = torch.normal(0, 0.5, w_f.shape) * bias
+    w_t = (1 - bias) * w_f + noise.to(w_f.device)
+    w_t = w_t.repeat([1, 16, 1])
+    w_f = w_f.repeat([1, 16, 1])
     step = 1.0 / num  
     for i in range(num):
         print(f"Generating latent walk {i}/{num}")
-        w_new = w * (1 - step * i) + w_t * step * i
+        w_new = w_f * (1 - step * i) + w_t * step * i
         l = [0, 0, 4.0000]
-        stacked_image = generate_carpaint(gen, dec, w_new, l, res, device)
-        PIL.Image.fromarray(stacked_image, 'RGB').save(os.path.join(outdir, f"{i}_maps.png"))
+        stacked_image = generate_carpaint(gen, dec, w_new, res, l, device)
+        stacked_image = (stacked_image*255).clamp(0, 255).to(torch.uint8).permute(0, 2, 3, 1)
+        PIL.Image.fromarray(stacked_image[0].cpu().numpy(), 'RGB').save(os.path.join(outdir, f"{i}_maps.png"))

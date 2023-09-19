@@ -405,6 +405,7 @@ class MLPNet(nn.Module):
         noise_size : int,
         context_size : int,
         depth : int,
+        use_checkpoint=False,
         use_fp16=False,
     ):
         super().__init__()
@@ -417,13 +418,13 @@ class MLPNet(nn.Module):
         self.time_embed = nn.Sequential(
             nn.Linear(self.time_embed_size, self.time_embed_size),
             nn.SiLU(),
-            nn.Linear(self.time_embed_size, self.time_embed_size)
+            nn.Linear(self.time_embed_size, self.time_embed_size, bias=True)
         )
 
         context_embed_dim = self.hidden_size // 4
         self.contex_embed = nn.Sequential(
             nn.Linear(context_size, context_embed_dim),
-            nn.GELU(approximate="tanh"),
+            nn.SiLU(),
             nn.Linear(context_embed_dim, context_embed_dim)
         )
 
@@ -431,16 +432,17 @@ class MLPNet(nn.Module):
         for _ in range(depth):
             layers += [  
                 nn.LayerNorm(self.hidden_size, elementwise_affine=False, eps=1e-6),
-                nn.GELU(approximate="tanh"),
-                nn.Linear(self.hidden_size, self.hidden_size) 
+                nn.LeakyReLU(),
+                nn.Linear(self.hidden_size, self.hidden_size, bias=True) 
                 ]
 
         self.hidden_layers = nn.Sequential(*layers)
 
         self.out = nn.Sequential(
-            nn.LayerNorm(self.hidden_size, elementwise_affine=False, eps=1e-6),
-            nn.SiLU(),
             nn.Linear(self.hidden_size, noise_size, bias=True),
+            nn.LeakyReLU(),
+            nn.Linear(self.noise_size, noise_size, bias=True),
+            nn.Linear(self.noise_size, noise_size, bias=True),
         )
 
     def forward(self, x, timesteps, context):

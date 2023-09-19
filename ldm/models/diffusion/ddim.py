@@ -102,7 +102,7 @@ class DDIMSampler(object):
         else: 
             C, H, W = shape
             size = (batch_size, C, H, W)
-        print(f'Data shape for DDIM sampling is {size}, eta {eta}')
+        #print(f'Data shape for DDIM sampling is {size}, eta {eta}')
 
         samples, intermediates = self.ddim_sampling(conditioning, size,
                                                     callback=callback,
