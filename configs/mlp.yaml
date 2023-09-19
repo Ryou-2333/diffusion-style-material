@@ -13,7 +13,7 @@ model:
     channels: 1
     concat_mode: false
     conditioning_key: crossattn
-    parameterization: eps
+    parameterization: x0
     cond_stage_trainable: true
     unet_config:
       target: models.timestep_networks.MLPNet

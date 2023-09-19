@@ -6,7 +6,8 @@ from .dpm_solver import NoiseScheduleVP, model_wrapper, DPM_Solver
 
 MODEL_TYPES = {
     "eps": "noise",
-    "v": "v"
+    "v": "v",
+    "x0": "x_start"
 }
 
 
