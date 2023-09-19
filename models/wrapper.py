@@ -86,10 +86,8 @@ class StyleLatentDiffusion(LatentDiffusion):
         loss_dict.update({f'{prefix}/loss_simple': loss_simple.mean()})
         logvar_t = self.logvar[t].to(self.device)
         loss = loss_simple / torch.exp(logvar_t) + logvar_t
-        loss_dict.update({f'mean': torch.mean(model_output)})
-        loss_dict.update({f'mean_t': torch.mean(model_output)})
-        loss_dict.update({f'var': torch.var(target)})
-        loss_dict.update({f'var_t': torch.var(target)})
+        loss_dict.update({f'mean(p/t)': f"{torch.mean(model_output)}/{torch.mean(target)}"})
+        loss_dict.update({f'var(p/t)': f"{torch.var(model_output)}/{torch.var(target)}"})
         loss = self.l_simple_weight * loss.mean()
         loss_vlb = self.get_loss(model_output, target, mean=False).mean(dim=(1, 2))
         loss_vlb = (self.lvlb_weights[t] * loss_vlb).mean()
