@@ -55,9 +55,9 @@ def gnerate_random_render_from_w(gen, dec, w_s, res, device=torch.device('cuda')
     # full w_s is calculated from primary latent w(1, 512).
     return generate_render(gen, dec, w_s, light_color, l_pos, scale, res, device)
 
-def generate_render(gen, dec, w_s, light_color, l_pos, scale, res, device=torch.device('cuda')):
+def generate_render(gen, dec, w_s, light_color, l_pos, scale, res, device=torch.device('cuda'), amb_li=True):
     N, D, R, S = generate_material(gen, dec, w_s, device)
-    rens = render_material(N, D, R, S, light_color, l_pos, scale, res, device)
+    rens = render_material(N, D, R, S, light_color, l_pos, scale, res, device, amb_li)
     return rens
 
 def generate_material(gen, dec, w_s, device=torch.device('cuda')):
@@ -70,11 +70,11 @@ def generate_material(gen, dec, w_s, device=torch.device('cuda')):
     S = maps[:,5:8,:,:].clamp(min=0, max=1)
     return N, D, R, S
 
-def render_material(N, D, R, S, light_color, l_pos, scale, res, device=torch.device('cuda')):
+def render_material(N, D, R, S, light_color, l_pos, scale, res, device=torch.device('cuda'), amb_li=True):
     tex_pos = getTexPos(res, scale, device).unsqueeze(0)
     light_pos = torch.tensor([l_pos]).to(device=device)
     ren_fea = torch.cat((N, D, R, S), dim=1)
-    rens = render(ren_fea, tex_pos, light_color, light_pos, isMetallic=False, amb_li=True, no_decay=False, cam_pos=None, dir_flag=False).float() #[0,1] [1,C,H,W]
+    rens = render(ren_fea, tex_pos, light_color, light_pos, isMetallic=False, amb_li=amb_li, no_decay=False, cam_pos=None, dir_flag=False).float() #[0,1] [1,C,H,W]
     return rens
 
 def get_random_noise(bs, z_dim, seed=None, device=torch.device('cuda')):

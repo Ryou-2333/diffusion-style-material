@@ -431,7 +431,7 @@ class MLPNet(nn.Module):
         layers = []
         for _ in range(depth):
             layers += [  
-                nn.LayerNorm(self.hidden_size, elementwise_affine=False, eps=1e-6),
+                nn.Linear(self.hidden_size, self.hidden_size, bias=True) ,
                 nn.LeakyReLU(),
                 nn.Linear(self.hidden_size, self.hidden_size, bias=True) 
                 ]

@@ -3,8 +3,8 @@ import pytorch_lightning as pl
 import numpy as np
 import os
 from ldm.util import instantiate_from_config
-from stylegan_interface import load_generator_decoder, gnerate_random_render_from_w, gnerate_random_render_from_batch
-from ldm.models.diffusion.ddpm import LatentDiffusion, extract_into_tensor, default
+from stylegan_interface import load_generator_decoder, gnerate_random_render_from_w, gnerate_random_render_from_batch, generate_render, set_param, get_rand_light_pos
+from ldm.models.diffusion.ddpm import LatentDiffusion, default
 from ldm.models.diffusion.dpm_solver import DPMSolverSampler
 
 def exists(v):
@@ -22,6 +22,16 @@ class StyleGANWrapper(pl.LightningModule):
         self.gen, self.dec, self.res = load_generator_decoder(generator_pth, decoder_pth, use_fp16, self.device)
         self.num_ws = num_ws
     
+    def get_render_loss(self, w_pred, w_gt):
+        w_s_pred = w_pred.repeat([1, self.num_ws, 1])
+        w_s_gt = w_gt.repeat([1, self.num_ws, 1])
+        light_color, _, scale = set_param(self.device)
+        l_pos = get_rand_light_pos(scale) 
+        pred = generate_render(self.gen, self.dec, w_s_pred, light_color, l_pos, scale, self.res, self.device, False)
+        gt = generate_render(self.gen, self.dec, w_s_gt, light_color, l_pos, scale, self.res, self.device, False)
+        loss = torch.nn.functional.mse_loss(gt, pred)
+        return loss
+
     def gnerate_render_w(self, batch):
         return gnerate_random_render_from_batch(self.gen, self.dec, batch, self.res, device=self.device)
             
@@ -86,10 +96,6 @@ class StyleLatentDiffusion(LatentDiffusion):
         loss_dict.update({f'{prefix}/loss_simple': loss_simple.mean()})
         logvar_t = self.logvar[t].to(self.device)
         loss = loss_simple / torch.exp(logvar_t) + logvar_t
-        loss_dict.update({f'mean': torch.mean(model_output)})
-        loss_dict.update({f'var': torch.var(model_output)})
-        loss_dict.update({f'mean_t': torch.mean(target)})
-        loss_dict.update({f'var_t': torch.var(target)})
         loss = self.l_simple_weight * loss.mean()
         loss_vlb = self.get_loss(model_output, target, mean=False).mean(dim=(1, 2))
         loss_vlb = (self.lvlb_weights[t] * loss_vlb).mean()
