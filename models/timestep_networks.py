@@ -404,6 +404,8 @@ class MLPNet(nn.Module):
         self,
         noise_size : int,
         context_size : int,
+        context_embed_dim: int,
+        time_embed_dim: int,
         depth : int,
         use_checkpoint=False,
         use_fp16=False,
@@ -411,17 +413,17 @@ class MLPNet(nn.Module):
         super().__init__()
         self.noise_size = noise_size
         self.context_size = context_size
-        self.hidden_size = noise_size * 2
+        self.time_embed_dim = time_embed_dim
+        self.context_embed_dim = context_embed_dim
+        self.hidden_size = noise_size + context_embed_dim + time_embed_dim
         self.dtype = th.float16 if use_fp16 else th.float32
         self.use_checkpoint = use_checkpoint
-        self.time_embed_size = self.hidden_size // 4
         self.time_embed = nn.Sequential(
-            nn.Linear(self.time_embed_size, self.time_embed_size),
+            nn.Linear(self.time_embed_dim, self.time_embed_dim),
             nn.SiLU(),
-            nn.Linear(self.time_embed_size, self.time_embed_size, bias=True)
+            nn.Linear(self.time_embed_dim, self.time_embed_dim, bias=True)
         )
 
-        context_embed_dim = self.hidden_size // 4
         self.contex_embed = nn.Sequential(
             nn.Linear(context_size, context_embed_dim),
             nn.SiLU(),
@@ -445,7 +447,7 @@ class MLPNet(nn.Module):
         )
 
     def forward(self, x, timesteps, context):
-        t_emb = timestep_embedding(timesteps, self.time_embed_size, repeat_only=False).unsqueeze(1)
+        t_emb = timestep_embedding(timesteps, self.time_embed_dim, repeat_only=False).unsqueeze(1)
         t_emb = self.time_embed(t_emb)
         c_emb = self.contex_embed(context)
         x_t = th.concat((x, t_emb, c_emb), dim=-1)
