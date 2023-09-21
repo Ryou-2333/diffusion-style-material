@@ -413,7 +413,7 @@ class MLPNet(nn.Module):
         self.context_size = context_size
         self.hidden_size = noise_size * 2
         self.dtype = th.float16 if use_fp16 else th.float32
-
+        self.use_checkpoint = use_checkpoint
         self.time_embed_size = self.hidden_size // 4
         self.time_embed = nn.Sequential(
             nn.Linear(self.time_embed_size, self.time_embed_size),
