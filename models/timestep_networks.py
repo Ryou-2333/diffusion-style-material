@@ -459,5 +459,6 @@ class MLPNet(nn.Module):
         t_emb = self.time_embed(t_emb)
         c_emb = self.contex_embed(context)
         x_t = th.concat((x, t_emb, c_emb), dim=-1)
+        x_t = self.input_layer(x_t)
         x_t = self.hidden_layers(x_t)
         return self.out(x_t)
