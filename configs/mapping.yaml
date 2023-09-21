@@ -1,0 +1,32 @@
+model:
+  base_learning_rate: 2.0e-06
+  target: models.mapping_wrapper.MappingWrapper
+  params:
+    mapping_config:
+      target: models.mapping_wrapper.MappingNet
+      params:
+        noise_size: 512
+        context_size: 1024
+        context_embed_dim: 1024
+        hidden_size: 1024
+        depth: 24
+        use_fp16: False
+    cond_stage_config:
+      target: ldm.modules.encoders.modules.OpenCLIPEncoder
+      params:
+        scale_factor: 1.0
+        type: cls
+    style_gan_config:
+      target: models.wrapper.StyleGANWrapper
+      params:
+        generator_pth: weights/photomat/G_512.pkl
+        decoder_pth: weights/photomat/MatUnet_512.pt
+        num_ws: 16
+        use_fp16: false
+
+dataloader:
+  # RandomNoiseDataLoader
+  params:
+    seed: 12345
+    count: 1000000
+    dim: 512
