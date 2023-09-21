@@ -6,7 +6,6 @@ from ldm.modules.attention import SpatialTransformer
 from ldm.modules.diffusionmodules.util import (
     conv_nd,
     linear,
-    zero_module,
     normalization,
     timestep_embedding,
 )
@@ -14,7 +13,6 @@ from ldm.util import exists
 import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
-from timm.models.vision_transformer import Mlp
 
 # dummy replace
 def convert_module_to_f16(x):
@@ -406,6 +404,7 @@ class MLPNet(nn.Module):
         context_size : int,
         context_embed_dim: int,
         time_embed_dim: int,
+        hidden_size: int,
         depth : int,
         use_checkpoint=False,
         use_fp16=False,
@@ -415,7 +414,8 @@ class MLPNet(nn.Module):
         self.context_size = context_size
         self.time_embed_dim = time_embed_dim
         self.context_embed_dim = context_embed_dim
-        self.hidden_size = noise_size + context_embed_dim + time_embed_dim
+        self.input_size = noise_size + context_embed_dim + time_embed_dim
+        self.hidden_size = hidden_size
         self.dtype = th.float16 if use_fp16 else th.float32
         self.use_checkpoint = use_checkpoint
         self.time_embed = nn.Sequential(
@@ -428,6 +428,14 @@ class MLPNet(nn.Module):
             nn.Linear(context_size, context_embed_dim),
             nn.SiLU(),
             nn.Linear(context_embed_dim, context_embed_dim)
+        )
+
+        self.input_layer = nn.Sequential(
+            nn.Linear(self.input_size, self.input_size, bias=True),
+            nn.GELU(),
+            nn.Linear(self.input_size, self.input_size, bias=True),
+            nn.GELU(),
+            nn.Linear(self.input_size, self.hidden_size, bias=True),
         )
 
         layers = []

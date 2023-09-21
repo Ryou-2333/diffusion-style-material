@@ -1,6 +1,5 @@
 import torch
 import pytorch_lightning as pl
-import numpy as np
 import os
 from ldm.util import instantiate_from_config
 from stylegan_interface import load_generator_decoder, gnerate_random_render_from_w, gnerate_random_render_from_batch, generate_render, set_param, get_rand_light_pos
