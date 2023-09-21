@@ -110,7 +110,7 @@ class StyleLatentDiffusion(LatentDiffusion):
         return [w, cls]
 
     @torch.no_grad()
-    def generate_image(self, example, batch_size, unconditional_guidance_scale=1., seed=None, reuse_seed=False, steps=20, eta=0):
+    def generate_w(self, example, batch_size, unconditional_guidance_scale=1., seed=None, reuse_seed=False, steps=20, eta=0):
         # set global seed for generation
         if reuse_seed:
             seed = os.environ.get("PL_GLOBAL_SEED")
@@ -123,14 +123,12 @@ class StyleLatentDiffusion(LatentDiffusion):
         c = v
 
         sampler = DPMSolverSampler(self, self.device)
-        samples, _ = sampler.sample(steps, conditioning=c, batch_size=batch_size,
+        samples, inters = sampler.sample(steps, conditioning=c, batch_size=batch_size,
                                     shape=(self.channels, self.image_size),
                                     unconditional_guidance_scale=unconditional_guidance_scale,
                                     unconditional_conditioning=None, eta=eta, x_T=None)
         
-        w = self.decode_first_stage(samples)
-        img = self.style_gan_model.generate_maps(w)
-        return img
+        return samples, inters
 
     @torch.no_grad()
     def log_images(self, batch, steps, **kwargs):
@@ -143,6 +141,7 @@ class StyleLatentDiffusion(LatentDiffusion):
                                     unconditional_guidance_scale=1.,
                                     unconditional_conditioning=cls, eta=0, x_T=None)
         w = self.decode_first_stage(samples)
+
         img_pred = self.style_gan_model.generate_maps(w)
         log = dict()
         log["GT"] = image_gt

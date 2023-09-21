@@ -1037,6 +1037,7 @@ class DPM_Solver:
         t_0 = 1. / self.noise_schedule.total_N if t_end is None else t_end
         t_T = self.noise_schedule.T if t_start is None else t_start
         device = x.device
+        inters = []
         if method == 'adaptive':
             with torch.no_grad():
                 x = self.dpm_solver_adaptive(x, order=order, t_T=t_T, t_0=t_0, atol=atol, rtol=rtol,
@@ -1065,6 +1066,7 @@ class DPM_Solver:
                         step_order = order
                     x = self.multistep_dpm_solver_update(x, model_prev_list, t_prev_list, vec_t, step_order,
                                                          solver_type=solver_type)
+                    inters.append(x)
                     for i in range(order - 1):
                         t_prev_list[i] = t_prev_list[i + 1]
                         model_prev_list[i] = model_prev_list[i + 1]
@@ -1094,7 +1096,7 @@ class DPM_Solver:
                 x = self.singlestep_dpm_solver_update(x, vec_s, vec_t, order, solver_type=solver_type, r1=r1, r2=r2)
         if denoise_to_zero:
             x = self.denoise_to_zero_fn(x, torch.ones((x.shape[0],)).to(device) * t_0)
-        return x
+        return x, inters
 
 
 #############################################################
