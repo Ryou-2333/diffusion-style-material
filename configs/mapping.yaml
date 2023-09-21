@@ -9,7 +9,7 @@ model:
         context_size: 1024
         context_embed_dim: 1024
         hidden_size: 1024
-        depth: 24
+        depth: 16
         use_fp16: False
     cond_stage_config:
       target: ldm.modules.encoders.modules.OpenCLIPEncoder
