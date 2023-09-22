@@ -29,39 +29,38 @@ class MappingNet(nn.Module):
         self.hidden_size = hidden_size
         self.dtype = torch.float16 if use_fp16 else torch.float32
         self.use_checkpoint = use_checkpoint
-
+        
         self.contex_embed = nn.Sequential(
             nn.Linear(context_size, context_embed_dim),
-            nn.SiLU(),
+            nn.LeakyReLU(0.2, True),
             nn.Linear(context_embed_dim, context_embed_dim)
         )
 
-        self.input_layer = nn.Sequential(
-            nn.Linear(self.input_size, self.input_size, bias=True),
-            nn.GELU(),
-            nn.Linear(self.input_size, self.input_size, bias=True),
-            nn.GELU(),
-            nn.Linear(self.input_size, self.hidden_size, bias=True),
-        )
 
-        layers = []
+        self.emb_modeules = nn.ModuleList()
+        self.module_list = nn.ModuleList()
+
+
+
         for _ in range(depth):
-            layers += [  
+            self.module_list.append(nn.Sequential(
                 nn.Linear(self.hidden_size, self.hidden_size, bias=True),
-                nn.GELU(),
-                ]
+                nn.LeakyReLU(0.2, True),
+            ))
 
-        self.hidden_layers = nn.Sequential(*layers)
+            self.emb_modeules.append(nn.Linear(self.context_embed_dim, hidden_size))
+
 
         self.out = nn.Sequential(
+            nn.LeakyReLU(0.2, True),
             nn.Linear(self.hidden_size, noise_size, bias=True),
-            nn.LeakyReLU(),
-            nn.Linear(self.noise_size, noise_size, bias=True),
-            nn.Linear(self.noise_size, noise_size, bias=True),
         )
 
     def forward(self, x, context):
         c_emb = self.contex_embed(context)
+        for i in range(self.depth):
+            x = self.module_list[i](x)
+            x += self.emb_modeules[i](c_emb)
         x_t = torch.concat((x, c_emb), dim=-1)
         x_t = self.input_layer(x_t)
         x_t = self.hidden_layers(x_t)

@@ -226,6 +226,9 @@ class MappingNetwork(torch.nn.Module):
     def forward(self, z, c, truncation_psi=1, truncation_cutoff=None, skip_w_avg_update=False):
         # Embed, normalize, and concat inputs.
         x = None
+        if c is not None:
+            z = z.squeeze(1)
+            c = c.squeeze(1)
         with torch.autograd.profiler.record_function('input'):
             if self.z_dim > 0:
                 misc.assert_shape(z, [None, self.z_dim])
