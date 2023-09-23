@@ -16,7 +16,6 @@ class MappingNet(nn.Module):
         noise_size : int,
         context_size : int,
         context_embed_dim: int,
-        hidden_size: int,
         depth : int,
         use_checkpoint=False,
         use_fp16=False,
@@ -25,31 +24,27 @@ class MappingNet(nn.Module):
         self.noise_size = noise_size
         self.context_size = context_size
         self.context_embed_dim = context_embed_dim
-        self.input_size = noise_size + context_embed_dim
-        self.hidden_size = hidden_size
+        self.hidden_size = noise_size
         self.dtype = torch.float16 if use_fp16 else torch.float32
         self.use_checkpoint = use_checkpoint
-        
+
         self.contex_embed = nn.Sequential(
             nn.Linear(context_size, context_embed_dim),
             nn.LeakyReLU(0.2, True),
             nn.Linear(context_embed_dim, context_embed_dim)
         )
 
-
         self.emb_modeules = nn.ModuleList()
         self.module_list = nn.ModuleList()
 
-
-
         for _ in range(depth):
             self.module_list.append(nn.Sequential(
-                nn.Linear(self.hidden_size, self.hidden_size, bias=True),
+                nn.LayerNorm(self.hidden_size, elementwise_affine=False, eps=1e-6),
                 nn.LeakyReLU(0.2, True),
+                nn.Linear(self.hidden_size, self.hidden_size, bias=True),
             ))
 
-            self.emb_modeules.append(nn.Linear(self.context_embed_dim, hidden_size))
-
+            self.emb_modeules.append(nn.Linear(self.context_embed_dim, self.hidden_size))
 
         self.out = nn.Sequential(
             nn.LeakyReLU(0.2, True),
@@ -61,10 +56,7 @@ class MappingNet(nn.Module):
         for i in range(self.depth):
             x = self.module_list[i](x)
             x += self.emb_modeules[i](c_emb)
-        x_t = torch.concat((x, c_emb), dim=-1)
-        x_t = self.input_layer(x_t)
-        x_t = self.hidden_layers(x_t)
-        return self.out(x_t)
+        return self.out(x)
 
 class MappingWrapper(pl.LightningModule):
     def __init__(self, mapping_config, style_gan_config, cond_stage_config, *args, **kwargs):

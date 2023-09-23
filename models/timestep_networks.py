@@ -402,9 +402,7 @@ class MLPNet(nn.Module):
         self,
         noise_size : int,
         context_size : int,
-        context_embed_dim: int,
-        time_embed_dim: int,
-        hidden_size: int,
+        embed_dim: int,
         depth : int,
         use_checkpoint=False,
         use_fp16=False,
@@ -412,53 +410,47 @@ class MLPNet(nn.Module):
         super().__init__()
         self.noise_size = noise_size
         self.context_size = context_size
-        self.time_embed_dim = time_embed_dim
-        self.context_embed_dim = context_embed_dim
-        self.input_size = noise_size + context_embed_dim + time_embed_dim
-        self.hidden_size = hidden_size
+        self.embed_dim = embed_dim
+        self.hidden_size = noise_size
+        self.depth = depth
         self.dtype = th.float16 if use_fp16 else th.float32
         self.use_checkpoint = use_checkpoint
+
         self.time_embed = nn.Sequential(
-            nn.Linear(self.time_embed_dim, self.time_embed_dim),
-            nn.SiLU(),
-            nn.Linear(self.time_embed_dim, self.time_embed_dim, bias=True)
+            nn.Linear(self.embed_dim, self.embed_dim),
+            nn.LeakyReLU(0.2, True),
+            nn.Linear(self.embed_dim, self.embed_dim)
         )
 
         self.contex_embed = nn.Sequential(
-            nn.Linear(context_size, context_embed_dim),
-            nn.SiLU(),
-            nn.Linear(context_embed_dim, context_embed_dim)
+            nn.Linear(context_size, embed_dim),
+            nn.LeakyReLU(0.2, True),
+            nn.Linear(embed_dim, embed_dim)
         )
 
-        self.input_layer = nn.Sequential(
-            nn.Linear(self.input_size, self.input_size, bias=True),
-            nn.GELU(),
-            nn.Linear(self.input_size, self.input_size, bias=True),
-            nn.GELU(),
-            nn.Linear(self.input_size, self.hidden_size, bias=True),
-        )
+        self.emb_modeules = nn.ModuleList()
+        self.module_list = nn.ModuleList()
 
-        layers = []
-        for _ in range(depth):
-            layers += [  
+        for _ in range(self.depth):
+            self.module_list.append(nn.Sequential(
+                nn.LayerNorm(self.hidden_size, elementwise_affine=False, eps=1e-6),
+                nn.LeakyReLU(0.2, True),
                 nn.Linear(self.hidden_size, self.hidden_size, bias=True),
-                nn.GELU(),
-                ]
+            ))
 
-        self.hidden_layers = nn.Sequential(*layers)
+            self.emb_modeules.append(nn.Linear(self.embed_dim, self.hidden_size))
 
         self.out = nn.Sequential(
+            nn.LeakyReLU(0.2, True),
             nn.Linear(self.hidden_size, noise_size, bias=True),
-            nn.LeakyReLU(),
-            nn.Linear(self.noise_size, noise_size, bias=True),
-            nn.Linear(self.noise_size, noise_size, bias=True),
         )
 
     def forward(self, x, timesteps, context):
-        t_emb = timestep_embedding(timesteps, self.time_embed_dim, repeat_only=False).unsqueeze(1)
+        t_emb = timestep_embedding(timesteps, self.embed_dim, repeat_only=False).unsqueeze(1)
         t_emb = self.time_embed(t_emb)
         c_emb = self.contex_embed(context)
-        x_t = th.concat((x, t_emb, c_emb), dim=-1)
-        x_t = self.input_layer(x_t)
-        x_t = self.hidden_layers(x_t)
-        return self.out(x_t)
+        emb = t_emb + c_emb
+        for i in range(self.depth):
+            x = self.module_list[i](x)
+            x += self.emb_modeules[i](emb)
+        return self.out(x)
