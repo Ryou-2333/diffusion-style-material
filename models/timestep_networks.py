@@ -13,6 +13,7 @@ from ldm.util import exists
 import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
+from timm.models.layers import Mlp
 
 # dummy replace
 def convert_module_to_f16(x):
@@ -454,7 +455,39 @@ class MLPNet(nn.Module):
             x = self.module_list[i](x)
             x += self.emb_modeules[i](emb)
         return self.out(x)
-    
+
+class CrossAttnBlock(nn.Module):
+    def __init__(
+        self,
+        query_dim : int,
+        context_dim : int,
+        heads: int,
+        dim_head : int,
+        mlp_ratio=4.0,
+        norm_layer=nn.LayerNorm,
+        act_layer=nn.LeakyReLU,
+        dropout=0.
+    ):
+        super().__init__()
+        self.norm1 = norm_layer(query_dim)
+        self.attn = MemoryEfficientCrossAttention(
+                                query_dim,
+                                context_dim,
+                                heads,
+                                dim_head,
+                                dropout
+                            )
+        self.norm2 = norm_layer(query_dim)
+        self.mlp = Mlp(in_features=query_dim, hidden_features=int(query_dim * mlp_ratio), act_layer=act_layer)
+
+    def forward(self, x, c):
+        shortcut = x
+        x = self.norm1(x)
+        x = self.attn(x, c)
+        x = shortcut + x
+        x = x + self.mlp(self.norm2(x))
+        return x
+
 class MultiAttentionNet(nn.Module):
     def __init__(
         self,
@@ -485,18 +518,18 @@ class MultiAttentionNet(nn.Module):
             nn.Linear(self.embed_size, self.embed_size)
         )
 
+        self.module = nn.ModuleList()
         self.emb_modeules = nn.ModuleList()
-        self.attn_modeules = nn.ModuleList()
 
         for _ in range(self.depth):
+            self.module.append(
+                CrossAttnBlock(
+                    query_dim=self.hidden_size,
+                    context_dim=self.context_size,
+                    heads=num_heads,
+                    dim_head=self.num_head_channels,
+                ))
             self.emb_modeules.append(nn.Linear(self.embed_size, self.hidden_size))
-            self.attn_modeules.append(MemoryEfficientCrossAttention(
-                                query_dim=self.hidden_size,
-                                context_dim=self.context_size,
-                                heads=num_heads,
-                                dim_head=self.num_head_channels,
-                                dropout=0.0,
-                            ))
 
         self.out = nn.Sequential(
             nn.LeakyReLU(0.2, True),
@@ -509,6 +542,6 @@ class MultiAttentionNet(nn.Module):
         t_emb = self.time_embed(t_emb)
         for i in range(self.depth):
             x_t += self.emb_modeules[i](t_emb)
-            x_t = self.attn_modeules[i](x_t, context)
+            x_t = self.module[i](x_t, context)
 
         return self.out(x_t)
