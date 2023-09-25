@@ -2,7 +2,7 @@ import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
 from ldm.modules.diffusionmodules.openaimodel import TimestepEmbedSequential, Upsample, Downsample, ResBlock, AttentionBlock
-from ldm.modules.attention import SpatialTransformer
+from ldm.modules.attention import SpatialTransformer, MemoryEfficientCrossAttention
 from ldm.modules.diffusionmodules.util import (
     conv_nd,
     linear,
@@ -454,3 +454,61 @@ class MLPNet(nn.Module):
             x = self.module_list[i](x)
             x += self.emb_modeules[i](emb)
         return self.out(x)
+    
+class MultiAttentionNet(nn.Module):
+    def __init__(
+        self,
+        noise_size : int,
+        hidden_size : int,
+        context_size : int,
+        embed_size: int,
+        depth : int,
+        num_head_channels=64,
+        use_checkpoint=False,
+        use_fp16=False,
+    ):
+        super().__init__()
+        self.noise_size = noise_size
+        self.context_size = context_size
+        self.embed_size = embed_size
+        self.hidden_size = hidden_size
+        self.depth = depth
+        num_heads = hidden_size // num_head_channels
+        self.num_head_channels = num_head_channels
+        self.dtype = th.float16 if use_fp16 else th.float32
+        self.use_checkpoint = use_checkpoint
+
+        self.input = nn.Linear(self.noise_size, self.hidden_size)
+        self.time_embed = nn.Sequential(
+            nn.Linear(self.embed_size, self.embed_size),
+            nn.LeakyReLU(0.2, True),
+            nn.Linear(self.embed_size, self.embed_size)
+        )
+
+        self.emb_modeules = nn.ModuleList()
+        self.attn_modeules = nn.ModuleList()
+
+        for _ in range(self.depth):
+            self.emb_modeules.append(nn.Linear(self.embed_size, self.hidden_size))
+            self.attn_modeules.append(MemoryEfficientCrossAttention(
+                                query_dim=self.hidden_size,
+                                context_dim=self.context_size,
+                                heads=num_heads,
+                                dim_head=self.num_head_channels,
+                                dropout=0.0,
+                            ))
+
+        self.out = nn.Sequential(
+            nn.LeakyReLU(0.2, True),
+            nn.Linear(self.hidden_size, noise_size, bias=True),
+        )
+
+    def forward(self, x, timesteps, context):
+        x = self.input(x)
+        t_emb = timestep_embedding(timesteps, self.embed_size, repeat_only=False).unsqueeze(1)
+        t_emb = self.time_embed(t_emb)
+        for i in range(self.depth):
+            x_t = self.emb_modeules[i](t_emb) + x
+            x_t = self.attn_modeules[i](x_t, context)
+
+        return self.out(x_t)
