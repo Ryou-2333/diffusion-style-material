@@ -504,11 +504,11 @@ class MultiAttentionNet(nn.Module):
         )
 
     def forward(self, x, timesteps, context):
-        x = self.input(x)
+        x_t = self.input(x)
         t_emb = timestep_embedding(timesteps, self.embed_size, repeat_only=False).unsqueeze(1)
         t_emb = self.time_embed(t_emb)
         for i in range(self.depth):
-            x_t = self.emb_modeules[i](t_emb) + x
+            x_t += self.emb_modeules[i](t_emb)
             x_t = self.attn_modeules[i](x_t, context)
 
         return self.out(x_t)
