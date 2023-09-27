@@ -1,6 +1,6 @@
 model:
   base_learning_rate: 2.0e-06
-  target: models.wrapper.StyleLatentDiffusion
+  target: models.diffusion_wrapper.StyleLatentDiffusion
   params:
     linear_start: 0.0015
     linear_end: 0.0205
@@ -16,7 +16,7 @@ model:
     parameterization: x0
     cond_stage_trainable: true
     unet_config:
-      target: models.timestep_networks.MultiAttentionNet
+      target: models.time_embed_networks.MultiAttentionNet
       params:
         noise_size : 512
         hidden_size: 512
@@ -35,7 +35,7 @@ model:
         scale_factor: 1.0
         type: tokens
     style_gan_config:
-      target: models.wrapper.StyleGANWrapper
+      target: models.style_gan_wrapper.StyleGANWrapper
       params:
         generator_pth: weights/photomat/G_512.pkl
         decoder_pth: weights/photomat/MatUnet_512.pt

@@ -9,6 +9,10 @@ from tensorboard.backend.event_processing import event_accumulator
 def exist(v):
     return v is not None
 
+def disabled_train(self):
+    """Overwrite model.train with this function to make sure train/eval mode
+    does not change anymore."""
+    return self
 
 def default(opt, v, d=None):
     if hasattr(opt, v) and getattr(opt, v):

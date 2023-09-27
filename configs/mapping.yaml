@@ -15,7 +15,7 @@ model:
         scale_factor: 1.0
         type: cls
     style_gan_config:
-      target: models.wrapper.StyleGANWrapper
+      target: models.style_gan_wrapper.StyleGANWrapper
       params:
         generator_pth: weights/photomat/G_512.pkl
         decoder_pth: weights/photomat/MatUnet_512.pt
