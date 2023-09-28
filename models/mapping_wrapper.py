@@ -73,7 +73,7 @@ class MappingWrapper(pl.LightningModule):
         cls = self.get_learned_conditioning(image_gt).detach()
         x = torch.randn_like(w)
         w_pred = self.model(x, cls)
-        img_pred = self.style_gan_model.generate_maps(w_pred)
+        img_pred = self.style_gan_model.generate_maps_from_w(w_pred)
         log = dict()
         log["GT"] = image_gt
         log["Pred"] = img_pred

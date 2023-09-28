@@ -1,6 +1,3 @@
-import torch
-import torch.optim as optim
-import pytorch_lightning as pl
 from utils import disabled_train
 from ldm.models.autoencoder import AutoencoderKL
 from utils import instantiate_from_config

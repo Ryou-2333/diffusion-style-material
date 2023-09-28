@@ -33,7 +33,7 @@ model:
       target: ldm.modules.encoders.modules.OpenCLIPEncoder
       params:
         scale_factor: 1.0
-        type: tokens
+        type: full
     style_gan_config:
       target: models.style_gan_wrapper.StyleGANWrapper
       params:
@@ -41,6 +41,7 @@ model:
         decoder_pth: weights/photomat/MatUnet_512.pt
         num_ws: 16
         use_fp16: false
+        use_dir_li: true
     monitor: val/loss_simple_ema
 
 dataloader:

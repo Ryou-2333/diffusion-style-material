@@ -94,7 +94,7 @@ class StyleLatentDiffusion(LatentDiffusion):
                                     unconditional_conditioning=cls, eta=0, x_T=None)
         w = self.decode_first_stage(samples)
 
-        img_pred = self.style_gan_model.generate_maps(w)
+        img_pred = self.style_gan_model.generate_maps_from_w(w)
         log = dict()
         log["GT"] = image_gt
         log["Pred"] = img_pred

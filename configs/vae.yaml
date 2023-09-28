@@ -1,0 +1,37 @@
+model:
+  target: ldm.models.autoencoder.AutoencoderKL
+  params:
+    embed_dim: 4
+    monitor: val/rec_loss
+    ddconfig:
+      double_z: true
+      z_channels: 4
+      resolution: 512
+      in_channels: 32
+      out_ch: 32
+      ch: 128
+      ch_mult:
+      - 1
+      - 2
+      - 4
+      - 8
+      - 8
+      num_res_blocks: 2
+      attn_resolutions: []
+      dropout: 0.0
+    lossconfig:
+      target: torch.nn.Identity
+    style_gan_config:
+      target: models.style_gan_wrapper.StyleGANWrapper
+      params:
+        generator_pth: weights/photomat/G_512.pkl
+        decoder_pth: weights/photomat/MatUnet_512.pt
+        num_ws: 16
+        use_fp16: false
+
+dataloader:
+  # RandomNoiseDataLoader
+  params:
+    seed: 12345
+    count: 1000000
+    dim: 512
