@@ -2,6 +2,9 @@ model:
   base_learning_rate: 2.0e-06
   target: models.diffusion_wrapper.StyleLatentDiffusion
   params:
+    condition_drop_rate: 0.1
+    fid_eval_count: 100
+    fid_eval_batch: 32
     linear_start: 0.0015
     linear_end: 0.0205
     log_every_t: 100

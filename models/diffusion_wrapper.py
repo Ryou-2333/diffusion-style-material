@@ -5,12 +5,46 @@ from ldm.models.diffusion.ddpm import LatentDiffusion, default
 from ldm.models.diffusion.dpm_solver import DPMSolverSampler
 from ldm.util import instantiate_from_config
 from utils import exist, disabled_train
+from torch_utils.fid_score import InceptionFID
 
 class StyleLatentDiffusion(LatentDiffusion):
-    def __init__(self, style_gan_config, *args, **kwargs):
+    def __init__(self, condition_drop_rate, fid_eval_count, fid_eval_batch, style_gan_config, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.condition_drop_rate = condition_drop_rate
         self.instantiate_style_gan(style_gan_config)
+        self.fid_eval_count = fid_eval_count
+        self.fid_eval_batch = fid_eval_batch
     
+    def on_train_epoch_end(self):
+        self.fid_evaluation()
+
+
+    @torch.no_grad()
+    def fid_evaluation(self):
+        self.eval()
+        batch_size = self.fid_eval_batch
+        count = self.fid_eval_count
+        data_size = batch_size * count
+        net = InceptionFID(data_size=data_size, device=self.device)
+
+        print(f'Evaluation data size {data_size}, begin to evaluate training via FID distance...')
+        w_loss = 0
+        for _ in range(count):
+            batch = torch.randn((batch_size, 512)).cuda()
+            img, w = self.style_gan_model.gnerate_render_w(batch)
+            pred_w, _ = self.generate_w(img, batch_size)
+            pred = self.style_gan_model.generate_maps_from_w(pred_w)
+            net.accumulate_statistics_of_imgs(img, target='real')
+            net.accumulate_statistics_of_imgs(pred, target='fake')
+            net.forward_idx(batch_size)
+            w_loss += torch.nn.functional.mse_loss(pred_w, w)
+
+        w_loss /= count
+        fid = net.fid_distance()
+        print(f'fid_score: {fid:.6f}, w_loss: {w_loss:.6f}')
+        self.train()
+
+
     def instantiate_style_gan(self, config):
         model = instantiate_from_config(config)
         self.style_gan_model = model.eval().to(self.device)
@@ -19,14 +53,10 @@ class StyleLatentDiffusion(LatentDiffusion):
             param.requires_grad = False
 
     def get_learned_conditioning(self, c):
-        if self.cond_stage_forward is None:
-            if hasattr(self.cond_stage_model, 'encode') and callable(self.cond_stage_model.encode):
-                c = self.cond_stage_model.encode(self.cond_stage_model.preprocess(c))
-            else:
-                c = self.cond_stage_model(self.cond_stage_model.preprocess(c))
-        else:
-            assert hasattr(self.cond_stage_model, self.cond_stage_forward)
-            c = getattr(self.cond_stage_model, self.cond_stage_forward)(c)
+        c = self.cond_stage_model.encode(self.cond_stage_model.preprocess(c))
+        if self.training and self.condition_drop_rate:
+            c = torch.bernoulli((1 - self.condition_drop_rate) * torch.ones(c.shape[0], device=c.device)[:, None, None]) * c
+
         return c
 
     def p_losses(self, x_start, cond, t, noise=None):
