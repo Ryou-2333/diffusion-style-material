@@ -36,7 +36,7 @@ def test_model(model_name, input_pth, output_dir, output_inter, count=1):
     model, gen, dec, res = load_models(model_name)
     img_t = transform(img).unsqueeze(0).to(model.device)
     for i in range(count):
-        w, inters = model.generate_w(img_t, 1, seed=i * 23572, unconditional_guidance_scale=10.0)
+        w, inters = model.generate_w(img_t, 1, seed=i * 23572, unconditional_guidance_scale=1.0)
         w_s = w.repeat([1, 16, 1]).to(model.device)
         out = generate_carpaint(gen, dec, w_s, res, device=model.device)
         out = (out*255).clamp(0, 255).to(torch.uint8).permute(0, 2, 3, 1)
@@ -54,5 +54,5 @@ def test_model(model_name, input_pth, output_dir, output_inter, count=1):
                 out.save(f"{output_dir}/inter_{i}_{j}.png")
                 j += 1
 
-test_model("local-attn", "checkpoints/local-dir/1_4_sampled.png", "checkpoints/local-dir", False, 4)
+test_model("local-attn", "checkpoints/local-dir/123423_0_ren.png", "checkpoints/local-dir", False, 4)
 
