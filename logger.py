@@ -168,7 +168,7 @@ class ConsoleLogger(Callback):
         w_loss /= count
         fid = net.fid_distance()
         model.train()
-        return (f'fid_score: {fid:.6f}, w_loss: {w_loss:.6f}')
+        return (f', \tfid_score: {fid:.6f}, \tw_loss: {w_loss:.6f}')
 
 
 
@@ -190,7 +190,7 @@ class ConsoleLogger(Callback):
             message += f",\tcurrent_g_lr: {trainer.optimizers[0].param_groups[0]['lr']:<.7f}"
             message += f",\tcurrent_d_lr: {trainer.optimizers[1].param_groups[0]['lr']:<.7f}"
         else:
-            message += f", current_lr: {trainer.optimizers[0].param_groups[0]['lr']:.7f}, "
+            message += f", current_lr: {trainer.optimizers[0].param_groups[0]['lr']:.7f}"
 
         message += self.fid_evaluation(pl_module)
         message += " }"
