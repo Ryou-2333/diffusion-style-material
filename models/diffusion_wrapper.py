@@ -5,6 +5,7 @@ from ldm.models.diffusion.ddpm import LatentDiffusion, default
 from ldm.models.diffusion.dpm_solver import DPMSolverSampler
 from ldm.util import instantiate_from_config
 from utils import exist, disabled_train
+from torch_utils.fid_score import InceptionFID
 
 class StyleLatentDiffusion(LatentDiffusion):
     def __init__(self, condition_drop_rate, fid_eval_count, fid_eval_batch, style_gan_config, *args, **kwargs):
@@ -60,6 +61,30 @@ class StyleLatentDiffusion(LatentDiffusion):
         cls = self.get_learned_conditioning(image).detach()
         return [w, cls]
 
+    def fid_evaluation(self):
+        self.eval()
+        batch_size = self.fid_eval_batch
+        count = self.fid_eval_count
+        data_size = batch_size * count
+        net = InceptionFID(data_size=data_size, device=self.device)
+
+        print(f'Evaluation data size {data_size}, begin to evaluate training via FID distance...')
+        w_loss = 0
+        for _ in range(count):
+            batch = torch.randn((batch_size, 512)).cuda()
+            img, w = self.style_gan_model.gnerate_render_w(batch)
+            pred_w, _ = self.generate_w(img, batch_size)
+            pred = self.style_gan_model.generate_maps_from_w(pred_w)
+            net.accumulate_statistics_of_imgs(img, target='real')
+            net.accumulate_statistics_of_imgs(pred, target='fake')
+            net.forward_idx(batch_size)
+            w_loss += torch.nn.functional.mse_loss(pred_w, w)
+
+        w_loss /= count
+        fid = net.fid_distance()
+        self.train()
+        return (f', \tfid_score: {fid:.6f}, \tw_loss: {w_loss:.6f}')
+
     @torch.no_grad()
     def generate_w(self, example, batch_size, unconditional_guidance_scale=1., seed=None, reuse_seed=False, steps=20, eta=0):
         # set global seed for generation
@@ -70,16 +95,14 @@ class StyleLatentDiffusion(LatentDiffusion):
             if exist(os.environ.get("PL_GLOBAL_SEED")):
                 del os.environ["PL_GLOBAL_SEED"]
         pl.seed_everything(seed)
-        v = self.get_learned_conditioning(example)
-        c = v
-
+        c = self.get_learned_conditioning(example).detach()
         sampler = DPMSolverSampler(self, self.device)
         samples, inters = sampler.sample(steps, conditioning=c, batch_size=batch_size,
                                     shape=(self.channels, self.image_size),
                                     unconditional_guidance_scale=unconditional_guidance_scale,
-                                    unconditional_conditioning=c, eta=eta, x_T=None)
-        
-        return samples, inters
+                                    unconditional_conditioning=torch.zeros_like(c), eta=eta, x_T=None)
+        w = self.decode_first_stage(samples)
+        return w, inters
 
     @torch.no_grad()
     def log_images(self, batch, steps, **kwargs):
@@ -90,7 +113,7 @@ class StyleLatentDiffusion(LatentDiffusion):
         samples, _ = sampler.sample(steps, conditioning=c, batch_size=batch_size,
                                     shape=(self.channels, self.image_size),
                                     unconditional_guidance_scale=1.,
-                                    unconditional_conditioning=c, eta=0, x_T=None)
+                                    unconditional_conditioning=torch.zeros_like(c), eta=0, x_T=None)
         w = self.decode_first_stage(samples)
 
         img_pred = self.style_gan_model.generate_maps_from_w(w)

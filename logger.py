@@ -9,7 +9,6 @@ import PIL.Image as Image
 from tqdm import tqdm
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.utilities import rank_zero_only
-from torch_utils.fid_score import InceptionFID
 
 maxm_sample_size = 32
 OPENAI_MEAN = torch.Tensor([0.48145466, 0.4578275, 0.40821073]).view(-1, 1, 1)
@@ -146,33 +145,6 @@ class ConsoleLogger(Callback):
             train_log.close()
     
     @rank_zero_only
-    def fid_evaluation(self, model):
-        model.eval()
-        batch_size = model.fid_eval_batch
-        count = model.fid_eval_count
-        data_size = batch_size * count
-        net = InceptionFID(data_size=data_size, device=model.device)
-
-        print(f'Evaluation data size {data_size}, begin to evaluate training via FID distance...')
-        w_loss = 0
-        for _ in range(count):
-            batch = torch.randn((batch_size, 512)).cuda()
-            img, w = self.style_gan_model.gnerate_render_w(batch)
-            pred_w, _ = self.generate_w(img, batch_size)
-            pred = self.style_gan_model.generate_maps_from_w(pred_w)
-            net.accumulate_statistics_of_imgs(img, target='real')
-            net.accumulate_statistics_of_imgs(pred, target='fake')
-            net.forward_idx(batch_size)
-            w_loss += torch.nn.functional.mse_loss(pred_w, w)
-
-        w_loss /= count
-        fid = net.fid_distance()
-        model.train()
-        return (f', \tfid_score: {fid:.6f}, \tw_loss: {w_loss:.6f}')
-
-
-
-    @rank_zero_only
     def on_train_epoch_end(self, trainer, pl_module):
         current_time = time.time()
         iter_time = current_time - self.pre_iter_time
@@ -192,7 +164,7 @@ class ConsoleLogger(Callback):
         else:
             message += f", current_lr: {trainer.optimizers[0].param_groups[0]['lr']:.7f}"
 
-        message += self.fid_evaluation(pl_module)
+        message += pl_module.fid_evaluation()
         message += " }"
         tqdm.write(message)
         train_log = open(os.path.join(self.ckpt_path, 'train_log.txt'), 'a')
