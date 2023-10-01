@@ -78,9 +78,10 @@ class StyleLatentDiffusion(LatentDiffusion):
             net.accumulate_statistics_of_imgs(img, target='real')
             net.accumulate_statistics_of_imgs(pred, target='fake')
             net.forward_idx(batch_size)
-            w_loss += torch.nn.functional.mse_loss(pred_w, w)
+            l = self.get_loss(pred, w, mean=False).mean(dim=(1, 2))
+            w_loss += l
 
-        w_loss /= count
+        w_loss = w_loss / count
         fid = net.fid_distance()
         self.train()
         return (f', \tfid_score: {fid:.6f}, \tw_loss: {w_loss:.6f}')
