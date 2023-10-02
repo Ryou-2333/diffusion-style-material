@@ -78,7 +78,7 @@ class StyleLatentDiffusion(LatentDiffusion):
             net.accumulate_statistics_of_imgs(img, target='real')
             net.accumulate_statistics_of_imgs(pred, target='fake')
             net.forward_idx(batch_size)
-            l = self.get_loss(pred, w, mean=False).mean(dim=(1, 2))
+            l = self.get_loss(pred_w, w, mean=False).mean()
             w_loss += l
 
         w_loss = w_loss / count
