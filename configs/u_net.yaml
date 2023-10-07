@@ -2,7 +2,7 @@ model:
   base_learning_rate: 2.0e-06
   target: models.wrapper.StyleLatentDiffusion
   params:
-    condition_drop_rate: 0.1
+    condition_drop_rate: 0.15
     fid_eval_count: 100
     fid_eval_batch: 32
     linear_start: 0.0015
@@ -50,7 +50,7 @@ model:
       target: ldm.modules.encoders.modules.OpenCLIPEncoder
       params:
         scale_factor: 1.0
-        type: cls
+        type: full
     style_gan_config:
       target: models.style_gan_wrapper.StyleGANWrapper
       params:
