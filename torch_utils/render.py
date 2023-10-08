@@ -149,7 +149,7 @@ def render(maps, tex_pos, li_color, li_pos, post='gamma', device='cuda', isMetal
 	img = f * geom * li_color
 
 	if amb_li:
-		amb_intensity = torch.rand(1).item() * 0.05
+		amb_intensity = torch.rand(1).item() * 0.1
 		amb_light = torch.rand([img.shape[0],img.shape[1],1,1], device=device)*amb_intensity
 		# amb_light = albedo*amb_intensity
 

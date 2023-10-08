@@ -8,20 +8,22 @@ import numpy as np
 def test_laten_walk(num_frames, bias, outdir='output_carpaint', gen_path='weights/photomat/G_512.pkl', dec_path='weights/photomat/MatUnet_512.pt'):
     stylegan_interface.generate_lanten_w_walk(gen_path, dec_path, outdir, bias, num_frames)
 
-def test_random_render_generate(num, outdir='output_rendered', gen_path='weights/photomat/G_512.pkl', dec_path='weights/photomat/MatUnet_512.pt'):
+def test_random_render_generate(num, row, col, outdir='output_rendered', gen_path='weights/photomat/G_512.pkl', dec_path='weights/photomat/MatUnet_512.pt'):
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     gen, dec, res = stylegan_interface.load_generator_decoder(gen_path, dec_path)
-    bs = 8
-    for i in range(num):
-        print(f"Generating random render {i}/{num}...")
-        rendered, w = stylegan_interface.gnerate_random_render(gen, dec, bs, res)
-        rendered = (rendered.permute(0, 2, 3, 1) * 255).clamp(0, 255).to(torch.uint8).cpu().numpy()
-        imgs = []
-        for j in range(bs):
-            imgs.append(rendered[j, :, :, :])
-        combined_img = np.hstack(imgs)
-        Image.fromarray(combined_img, 'RGB').save(f"{outdir}/render_{i}.png")
+    for k in range(num):
+        combined_imgs = []
+        for i in range(row):
+            print(f"Generating random render {i}/{row}...")
+            rendered, w = stylegan_interface.gnerate_random_render(gen, dec, col, res, dir_flag=True)
+            rendered = (rendered.permute(0, 2, 3, 1) * 255).clamp(0, 255).to(torch.uint8).cpu().numpy()
+            imgs = []
+            for j in range(col):
+                imgs.append(rendered[j, :, :, :])
+            combined_imgs.append(np.hstack(imgs))
+        final_image = np.vstack(combined_imgs)
+        Image.fromarray(final_image, 'RGB').save(f"{outdir}/render_{k}.png")
 
 def test_material_generate(num, outdir='output_carpaint', gen_path='weights/photomat/G_512.pkl', dec_path='weights/photomat/MatUnet_512.pt'):
     stylegan_interface.generate_random_carpaints(gen_path, dec_path, outdir, num)
@@ -80,9 +82,9 @@ def write_to_file(path, o):
         f.write(str(o))
 
 if __name__ == '__main__':
-    #test_random_render_generate(10)
+    test_random_render_generate(30, 4, 10)
     #test_material_generate(100)
     #test_create_model('diffusion_style.model')
     #test_inference()
     #for i in range(20):
-    test_laten_walk(10, 1, f"latent_walk_{i}")
+    #test_laten_walk(10, 1, f"latent_walk_{i}")

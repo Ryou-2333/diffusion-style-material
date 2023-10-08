@@ -35,12 +35,12 @@ def load_generator_decoder(generator_pth, matunet_pth, use_fp16=False, device=to
     dec.load_state_dict(torch.load(matunet_pth)['MatUnet'])
     return gen, dec, res
 
-def gnerate_random_render(gen, dec, bs, res, device=torch.device('cuda')):
+def gnerate_random_render(gen, dec, bs, res, device=torch.device('cuda'), amb_li=True, dir_flag=False):
     z = get_random_noise(bs, gen.z_dim)
     w_s = gen.mapping(z, None, truncation_psi=1, truncation_cutoff=14)
     light_color, _, scale = set_param(device)
     l_pos = get_rand_light_pos(scale)
-    return generate_render(gen, dec, w_s, light_color, l_pos, scale, res, device), w_s[:,0:1,:]
+    return generate_render(gen, dec, w_s, light_color, l_pos, scale, res, device, amb_li, dir_flag), w_s[:,0:1,:]
 
 def gnerate_random_render_from_batch(gen, dec, batch, res, device=torch.device('cuda'), dir_flag=False):
     w_s = gen.mapping(batch, None, truncation_psi=1, truncation_cutoff=14)
@@ -70,18 +70,18 @@ def gnerate_random_render_from_fea(gen, dec, fea, res, device=torch.device('cuda
     # full w_s is calculated from primary latent w(1, 512).
     return render_mat_fea(gen, dec, fea, light_color, l_pos, scale, res, device)
 
-def render_mat_fea(dec, fea, light_color, l_pos, scale, res, device=torch.device('cuda'), amb_li=True):
+def render_mat_fea(dec, fea, light_color, l_pos, scale, res, device=torch.device('cuda'), amb_li=True, dir_flag=False):
     maps = dec(fea) * 0.5 + 0.5
     N = height_to_normal(maps[:,0:1,:,:], scale)
     D = maps[:,1:4,:,:].clamp(min=0, max=1)
     R = maps[:,4:5,:,:].repeat(1,3,1,1).clamp(min=0.2, max=0.9)
     S = maps[:,5:8,:,:].clamp(min=0, max=1)
-    rens = render_material(N, D, R, S, light_color, l_pos, scale, res, device, amb_li)
+    rens = render_material(N, D, R, S, light_color, l_pos, scale, res, device, amb_li, dir_flag)
     return rens
 
 def generate_render(gen, dec, w_s, light_color, l_pos, scale, res, device=torch.device('cuda'), amb_li=True, dir_flag=False):
     N, D, R, S = generate_material(gen, dec, w_s, device)
-    rens = render_material(N, D, R, S, light_color, l_pos, scale, res, device, amb_li)
+    rens = render_material(N, D, R, S, light_color, l_pos, scale, res, device, amb_li, dir_flag)
     return rens
 
 def generate_material(gen, dec, w_s, device=torch.device('cuda')):
@@ -100,6 +100,8 @@ def render_material(N, D, R, S, light_color, l_pos, scale, res, device=torch.dev
     ren_fea = torch.cat((N, D, R, S), dim=1)
     if dir_flag:
         dir_flag = get_ran_light_type()
+    if dir_flag:
+        light_color *= 0.5 + (torch.rand(1, device=device)) * 0.3
     rens = render(ren_fea, tex_pos, light_color, light_pos, device=device, isMetallic=False, amb_li=amb_li, no_decay=False, cam_pos=None, dir_flag=dir_flag).float() #[0,1] [1,C,H,W]
     return rens
 
