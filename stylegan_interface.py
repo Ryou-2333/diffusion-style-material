@@ -101,7 +101,7 @@ def render_material(N, D, R, S, light_color, l_pos, scale, res, device=torch.dev
     if dir_flag:
         dir_flag = get_ran_light_type()
     if dir_flag:
-        light_color *= 0.5 + (torch.rand(1, device=device)) * 0.3
+        light_color *= 0.6 + (torch.rand(1, device=device)) * 0.2
     rens = render(ren_fea, tex_pos, light_color, light_pos, device=device, isMetallic=False, amb_li=amb_li, no_decay=False, cam_pos=None, dir_flag=dir_flag).float() #[0,1] [1,C,H,W]
     return rens
 
@@ -115,7 +115,7 @@ def get_random_noise(bs, z_dim, seed=None, device=torch.device('cuda')):
 def clamp(value, min_value, max_value):
     return max(min(value, max_value), min_value)
 
-def get_ran_light_type(p=0.3):
+def get_ran_light_type(p=0.5):
     if np.random.random() < p:
         return True
     return False
