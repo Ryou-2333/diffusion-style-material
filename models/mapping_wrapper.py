@@ -20,6 +20,8 @@ class MappingWrapper(pl.LightningModule):
         for param in self.cond_stage_model.parameters():
             param.requires_grad = False
             
+    def fid_evaluation():
+        return ""
 
     def instantiate_style_gan(self, config):
         model = instantiate_from_config(config)

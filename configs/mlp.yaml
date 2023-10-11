@@ -24,7 +24,7 @@ model:
         noise_size : 512
         context_size : 1024
         embed_dim: 512
-        depth : 32
+        depth : 16
         use_fp16: False
     first_stage_config:
       target: ldm.models.autoencoder.IdentityFirstStage
