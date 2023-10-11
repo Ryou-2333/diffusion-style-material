@@ -4,6 +4,8 @@ from stylegan_interface import load_generator_decoder, generate_carpaint
 import yaml
 from PIL import Image
 from torchvision import transforms
+import numpy as np
+import random
 
 MODEL_DICTS = {
     "cls-mlp": "configs/mlp.yaml",
@@ -24,6 +26,9 @@ transform = transforms.Compose([
     transforms.ToTensor()
 ])
 
+max_seed_value = np.iinfo(np.uint32).max
+min_seed_value = np.iinfo(np.uint32).min
+
 def load_models(model_name):
     config_file = MODEL_DICTS[model_name]
     with open(config_file, 'r') as f:
@@ -33,18 +38,22 @@ def load_models(model_name):
     gen, dec, res = load_generator_decoder(gen_path, dec_path, device=model.device)
     return model, gen, dec, res
 
-def test_model(model_name, input_pth, output_dir, output_inter, count=1, gs = 1.0):
+def test_model(model_name, input_pth, output_dir, output_inter, count=1, gs = 1.0, random_seed = False, name=0):
     img = Image.open(input_pth)
     model, gen, dec, res = load_models(model_name)
     img_t = transform(img).unsqueeze(0).to(model.device)
     for i in range(count):
-        w, inters = model.generate_w(img_t, 1, seed=i * 23572, unconditional_guidance_scale=gs)
+        if random_seed: 
+            seed=random.randint(min_seed_value, max_seed_value)
+        else:
+            seed=i * 23572
+        w, inters = model.generate_w(img_t, 1, unconditional_guidance_scale=gs, seed=seed)
         w_s = w.repeat([1, 16, 1]).to(model.device)
         out = generate_carpaint(gen, dec, w_s, res, device=model.device)
         out = (out*255).clamp(0, 255).to(torch.uint8).permute(0, 2, 3, 1)
         out = out.squeeze(0).detach()
         out = Image.fromarray(out.cpu().numpy(), 'RGB')
-        out.save(f"{output_dir}/result_gs{gs}_{i}.png")
+        out.save(f"{output_dir}/result_{name}_gs{gs}_{seed}.png")
         if(output_inter):
             j = 0
             for inter in inters:
@@ -53,11 +62,20 @@ def test_model(model_name, input_pth, output_dir, output_inter, count=1, gs = 1.
                 out = (out*255).clamp(0, 255).to(torch.uint8).permute(0, 2, 3, 1)
                 out = out.squeeze(0).detach()
                 out = Image.fromarray(out.cpu().numpy(), 'RGB')
-                out.save(f"{output_dir}/inter_gs{gs}_{i}_{j}.png")
+                out.save(f"{output_dir}/inter_{name}_gs{gs}_{j}_{seed}.png")
                 j += 1
 
 #test_model("full-dp10", "checkpoints/full-dir-dp10/4_0_sampled.png", "checkpoints/full-dir-dp10", False, 3, 1.1)
 #test_model("full-dp10", "checkpoints/full-dir-dp10/4_0_sampled.png", "checkpoints/full-dir-dp10", False, 3, 1.2)
 #test_model("full-dp10", "checkpoints/full-dir-dp10/4_0_sampled.png", "checkpoints/full-dir-dp10", False, 3, 1.3)
 #test_model("full-dp10", "checkpoints/full-dir-dp10/4_0_sampled.png", "checkpoints/full-dir-dp10", False, 3, 1.4)
-test_model("full-dp10", "checkpoints/full-dir-dp10/4_0_sampled.png", "checkpoints/full-dir-dp10", False, 3, 1.5)
+test_model("full-dp10", "checkpoints/full-dir-dp10/Ground054_1K-JPG_rendered.png", "checkpoints/full-dir-dp10", False, 12, 7, name=0)
+test_model("full-dp10", "checkpoints/full-dir-dp10/Marble006_1K-JPG_rendered.png", "checkpoints/full-dir-dp10", False, 12, 7, name=1)
+test_model("full-dp10", "checkpoints/full-dir-dp10/Metal047B_1K-JPG_rendered.png", "checkpoints/full-dir-dp10", False, 12, 7, name=2)
+test_model("full-dp10", "checkpoints/full-dir-dp10/PavingStones129_1K-JPG_rendered.png", "checkpoints/full-dir-dp10", False, 12, 7, name=3)
+test_model("full-dp10", "checkpoints/full-dir-dp10/PavingStones133_1K-JPG_rendered.png", "checkpoints/full-dir-dp10", False, 12, 7, name=4)
+test_model("full-dp10", "checkpoints/full-dir-dp10/PavingStones134_1K-JPG_rendered.png", "checkpoints/full-dir-dp10", False, 12, 7, name=5)
+test_model("full-dp10", "checkpoints/full-dir-dp10/PavingStones136_1K-JPG_rendered.png", "checkpoints/full-dir-dp10", False, 12, 7, name=6)
+test_model("full-dp10", "checkpoints/full-dir-dp10/Planks037A_1K-JPG_rendered.png", "checkpoints/full-dir-dp10", False, 12, 7, name=7)
+test_model("full-dp10", "checkpoints/full-dir-dp10/Planks038_1K-JPG_rendered.png", "checkpoints/full-dir-dp10", False, 12, 7, name=8)
+test_model("full-dp10", "checkpoints/full-dir-dp10/Wood051_1K-JPG_rendered.png", "checkpoints/full-dir-dp10", False, 12, 7, name=9)

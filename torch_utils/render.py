@@ -78,7 +78,7 @@ def render(maps, tex_pos, li_color, li_pos, post='gamma', device='cuda', isMetal
 	assert li_pos.shape[1]==3, "the 1 channel of position map should be 3"
 
 	# print(" maps: ",maps.shape)
-	if maps.shape[1]==12:
+	if maps.shape[1]==12 and not isMetallic:
 		use_spec = True
 		spec = maps[:,9:12,:,:]
 	else:

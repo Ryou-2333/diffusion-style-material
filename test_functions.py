@@ -4,6 +4,9 @@ from PIL import Image
 from cldm.model import create_model
 import os
 import numpy as np
+import torch
+from torchvision import transforms
+import cv2
 
 def test_laten_walk(num_frames, bias, outdir='output_carpaint', gen_path='weights/photomat/G_512.pkl', dec_path='weights/photomat/MatUnet_512.pt'):
     stylegan_interface.generate_lanten_w_walk(gen_path, dec_path, outdir, bias, num_frames)
@@ -81,10 +84,56 @@ def write_to_file(path, o):
     with open(path, 'w') as f:
         f.write(str(o))
 
+def render_test_data(in_dir='../test/in', outdir='../test/out', res = 512):
+    to_tensor = transforms.ToTensor()
+
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+    for mat in os.listdir(in_dir):
+        mat_dir = os.path.join(in_dir, mat)
+        if os.path.isdir(mat_dir):
+            M = torch.zeros(1, 3, 512, 512)
+            D = torch.zeros(1, 3, 512, 512)
+            N = torch.ones(1, 3, 512, 512)
+            N[:, 2, :, :] = 1
+            R = torch.zeros(1, 3, 512, 512)
+            for tex in os.listdir(mat_dir):
+                tex_path = os.path.join(mat_dir, tex)
+                if(tex.endswith('Color.jpg')):
+                    img = cv2.imread(tex_path)
+                    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                    img_resized = cv2.resize(img_rgb, (res, res))
+                    D = to_tensor(img_resized).unsqueeze(0)
+                elif(tex.endswith('Roughness.jpg')):
+                    img = cv2.imread(tex_path)
+                    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                    img_resized = cv2.resize(img_rgb, (res, res))
+                    R = to_tensor(img_resized).clamp(min=0.2, max=0.9).unsqueeze(0)
+                elif(tex.endswith('Metalness.jpg')):
+                    img = cv2.imread(tex_path)
+                    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                    img_resized = cv2.resize(img_rgb, (res, res))
+                    M = to_tensor(img_resized).unsqueeze(0)
+                elif(tex.endswith('NormalGL.jpg')):
+                    img = cv2.imread(tex_path)
+                    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                    img_resized = cv2.resize(img_rgb, (res, res))
+                    N = (to_tensor(img_resized) * 2 - 1).unsqueeze(0)
+            light_color, _, scale = stylegan_interface.set_param(device=D.device)
+            l_pos = stylegan_interface.get_rand_light_pos(scale)
+            rendered = stylegan_interface.render_material(N, D, R, M, light_color, l_pos, scale, 512, D.device, dir_flag=True, isMetal=True)
+            rendered = (rendered.permute(0, 2, 3, 1) * 255).clamp(0, 255).to(torch.uint8).cpu().numpy()
+            rendered = rendered.squeeze(0)
+            Image.fromarray(rendered, 'RGB').save(f"{outdir}/{mat}_rendered.png")
+            
+                
+                
+
 if __name__ == '__main__':
-    test_random_render_generate(30, 4, 10)
+    #test_random_render_generate(30, 4, 10)
     #test_material_generate(100)
     #test_create_model('diffusion_style.model')
     #test_inference()
     #for i in range(20):
     #test_laten_walk(10, 1, f"latent_walk_{i}")
+    render_test_data("../../TexMat_67", "../../TexMat_rendered_dir")
