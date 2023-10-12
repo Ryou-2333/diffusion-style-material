@@ -102,20 +102,12 @@ def render(maps, tex_pos, li_color, li_pos, post='gamma', device='cuda', isMetal
 		f0 = 0.04
 
 	if dir_flag:
-		l = norm(li_pos)
-
-		# v_dir = torch.zeros_like(l).to(l.device)
-		# v_dir[:,-1,:,:]=1
-		# cos = compute_cos(l, v_dir)
-		# dist_l_sq = (4/cos)**2
-
-		dist_l_sq = 16
-
-		v = l
+		v, _ = getDir(cam_pos, tex_pos)
+		l = norm(li_pos).expand(v.shape).to(li_pos.device)
+		no_decay = True
 	else:
 		l, dist_l_sq = getDir(li_pos, tex_pos)
 		v, _ = getDir(cam_pos, tex_pos)
-
 
 	h = norm(l + v)
 	normal = norm(normal)

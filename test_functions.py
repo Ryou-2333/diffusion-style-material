@@ -99,41 +99,40 @@ def render_test_data(in_dir='../test/in', outdir='../test/out', res = 512):
             R = torch.zeros(1, 3, 512, 512)
             for tex in os.listdir(mat_dir):
                 tex_path = os.path.join(mat_dir, tex)
-                if(tex.endswith('Color.jpg')):
+                if(tex.endswith('diff.jpg')):
                     img = cv2.imread(tex_path)
                     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                     img_resized = cv2.resize(img_rgb, (res, res))
                     D = to_tensor(img_resized).unsqueeze(0)
-                elif(tex.endswith('Roughness.jpg')):
+                elif(tex.endswith('rou.jpg')):
                     img = cv2.imread(tex_path)
                     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                     img_resized = cv2.resize(img_rgb, (res, res))
                     R = to_tensor(img_resized).clamp(min=0.2, max=0.9).unsqueeze(0)
-                elif(tex.endswith('Metalness.jpg')):
+                elif(tex.endswith('metal.jpg')):
                     img = cv2.imread(tex_path)
                     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                     img_resized = cv2.resize(img_rgb, (res, res))
                     M = to_tensor(img_resized).unsqueeze(0)
-                elif(tex.endswith('NormalGL.jpg')):
+                elif(tex.endswith('nor.jpg')):
                     img = cv2.imread(tex_path)
                     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                     img_resized = cv2.resize(img_rgb, (res, res))
                     N = (to_tensor(img_resized) * 2 - 1).unsqueeze(0)
             light_color, _, scale = stylegan_interface.set_param(device=D.device)
             l_pos = stylegan_interface.get_rand_light_pos(scale)
-            rendered = stylegan_interface.render_material(N, D, R, M, light_color, l_pos, scale, 512, D.device, dir_flag=True, isMetal=True)
+            dir_dir = stylegan_interface.get_rand_light_pos(scale * 4)
+            dir_color=np.random.normal(0.1, 0.5) * light_color
+            rendered = stylegan_interface.render_material(N, D, R, M, light_color, l_pos, scale, 512, D.device, dir_flag=False, isMetal=True)
             rendered = (rendered.permute(0, 2, 3, 1) * 255).clamp(0, 255).to(torch.uint8).cpu().numpy()
             rendered = rendered.squeeze(0)
             Image.fromarray(rendered, 'RGB').save(f"{outdir}/{mat}_rendered.png")
             
-                
-                
-
 if __name__ == '__main__':
-    #test_random_render_generate(30, 4, 10)
+    #test_random_render_generate(1000, 1, 1)
     #test_material_generate(100)
     #test_create_model('diffusion_style.model')
     #test_inference()
     #for i in range(20):
     #test_laten_walk(10, 1, f"latent_walk_{i}")
-    render_test_data("../../TexMat_67", "../../TexMat_rendered_dir")
+    render_test_data("../../TexMat", "../../TexMat_rendered")

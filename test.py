@@ -16,7 +16,7 @@ MODEL_DICTS = {
 CKPT_DICTS = {
     "cls-mlp": "checkpoints/cls-mlp/latest.ckpt",
     "local-attn": "checkpoints/local-dir/epoch-10.ckpt",
-    "full-dp10": "checkpoints/full-dir-dp10/latest.ckpt"
+    "full-dp10": "checkpoints/full-dir-dp15/epoch-25.ckpt"
 }
 
 gen_path = 'weights/photomat/G_512.pkl'
@@ -69,13 +69,11 @@ def test_model(model_name, input_pth, output_dir, output_inter, count=1, gs = 1.
 #test_model("full-dp10", "checkpoints/full-dir-dp10/4_0_sampled.png", "checkpoints/full-dir-dp10", False, 3, 1.2)
 #test_model("full-dp10", "checkpoints/full-dir-dp10/4_0_sampled.png", "checkpoints/full-dir-dp10", False, 3, 1.3)
 #test_model("full-dp10", "checkpoints/full-dir-dp10/4_0_sampled.png", "checkpoints/full-dir-dp10", False, 3, 1.4)
-test_model("full-dp10", "checkpoints/full-dir-dp10/Ground054_1K-JPG_rendered.png", "checkpoints/full-dir-dp10", False, 12, 7, name=0)
-test_model("full-dp10", "checkpoints/full-dir-dp10/Marble006_1K-JPG_rendered.png", "checkpoints/full-dir-dp10", False, 12, 7, name=1)
-test_model("full-dp10", "checkpoints/full-dir-dp10/Metal047B_1K-JPG_rendered.png", "checkpoints/full-dir-dp10", False, 12, 7, name=2)
-test_model("full-dp10", "checkpoints/full-dir-dp10/PavingStones129_1K-JPG_rendered.png", "checkpoints/full-dir-dp10", False, 12, 7, name=3)
-test_model("full-dp10", "checkpoints/full-dir-dp10/PavingStones133_1K-JPG_rendered.png", "checkpoints/full-dir-dp10", False, 12, 7, name=4)
-test_model("full-dp10", "checkpoints/full-dir-dp10/PavingStones134_1K-JPG_rendered.png", "checkpoints/full-dir-dp10", False, 12, 7, name=5)
-test_model("full-dp10", "checkpoints/full-dir-dp10/PavingStones136_1K-JPG_rendered.png", "checkpoints/full-dir-dp10", False, 12, 7, name=6)
-test_model("full-dp10", "checkpoints/full-dir-dp10/Planks037A_1K-JPG_rendered.png", "checkpoints/full-dir-dp10", False, 12, 7, name=7)
-test_model("full-dp10", "checkpoints/full-dir-dp10/Planks038_1K-JPG_rendered.png", "checkpoints/full-dir-dp10", False, 12, 7, name=8)
-test_model("full-dp10", "checkpoints/full-dir-dp10/Wood051_1K-JPG_rendered.png", "checkpoints/full-dir-dp10", False, 12, 7, name=9)
+test_model("full-dp10", "checkpoints/full-dir-dp15/plank01_rendered.png", "checkpoints/full-dir-dp15", False, 12, 1, name=0)
+test_model("full-dp10", "checkpoints/full-dir-dp15/plank01_rendered.png", "checkpoints/full-dir-dp15", False, 12, 2, name=0)
+test_model("full-dp10", "checkpoints/full-dir-dp15/plank01_rendered.png", "checkpoints/full-dir-dp15", False, 12, 3, name=0)
+test_model("full-dp10", "checkpoints/full-dir-dp15/plank01_rendered.png", "checkpoints/full-dir-dp15", False, 12, 5, name=0)
+test_model("full-dp10", "checkpoints/full-dir-dp15/plank01_rendered.png", "checkpoints/full-dir-dp15", False, 12, 6, name=0)
+test_model("full-dp10", "checkpoints/full-dir-dp15/plank01_rendered.png", "checkpoints/full-dir-dp15", False, 12, 7, name=0)
+test_model("full-dp10", "checkpoints/full-dir-dp15/plank01_rendered.png", "checkpoints/full-dir-dp15", False, 12, 8, name=0)
+test_model("full-dp10", "checkpoints/full-dir-dp15/plank01_rendered.png", "checkpoints/full-dir-dp15", False, 12, 9, name=0)

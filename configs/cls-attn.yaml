@@ -1,0 +1,55 @@
+model:
+  base_learning_rate: 2.0e-06
+  target: models.diffusion_wrapper.StyleLatentDiffusion
+  params:
+    condition_drop_rate: 0.10
+    fid_eval_count: 100
+    fid_eval_batch: 32
+    linear_start: 0.0015
+    linear_end: 0.0205
+    log_every_t: 100
+    timesteps: 1000
+    loss_type: l1
+    first_stage_key: image
+    cond_stage_key: coordinates_bbox
+    image_size: 512
+    channels: 1
+    concat_mode: false
+    conditioning_key: crossattn
+    parameterization: x0
+    cond_stage_trainable: true
+    unet_config:
+      target: models.time_embed_networks.MultiAttentionNet
+      params:
+        noise_size : 512
+        hidden_size: 512
+        context_size : 1024
+        embed_size: 512
+        depth : 4
+        num_head_channels: 64
+        use_fp16: False
+    first_stage_config:
+      target: ldm.models.autoencoder.IdentityFirstStage
+      params:
+        vq_interface: false
+    cond_stage_config:
+      target: ldm.modules.encoders.modules.OpenCLIPEncoder
+      params:
+        scale_factor: 1.0
+        type: cls
+    style_gan_config:
+      target: models.style_gan_wrapper.StyleGANWrapper
+      params:
+        generator_pth: weights/photomat/G_512.pkl
+        decoder_pth: weights/photomat/MatUnet_512.pt
+        num_ws: 16
+        use_fp16: false
+        use_dir_li: true
+    monitor: val/loss_simple_ema
+
+dataloader:
+  # RandomNoiseDataLoader
+  params:
+    seed: 12345
+    count: 1000000
+    dim: 512
