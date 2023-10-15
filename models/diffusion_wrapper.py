@@ -72,9 +72,9 @@ class StyleLatentDiffusion(LatentDiffusion):
         w_loss = 0
         for _ in range(count):
             batch = torch.randn((batch_size, 512)).cuda()
-            img, w = self.style_gan_model.gnerate_render_w(batch)
+            img, w = self.style_gan_model.gnerate_render_w(batch, False)
             pred_w, _ = self.generate_w(img, batch_size)
-            pred = self.style_gan_model.generate_maps_from_w(pred_w)
+            pred = self.style_gan_model.generate_render_from_w(pred_w, False)
             net.accumulate_statistics_of_imgs(img, target='real')
             net.accumulate_statistics_of_imgs(pred, target='fake')
             net.forward_idx(batch_size)
@@ -117,7 +117,7 @@ class StyleLatentDiffusion(LatentDiffusion):
                                     unconditional_conditioning=torch.zeros_like(c), eta=0, x_T=None)
         w = self.decode_first_stage(samples)
 
-        img_pred = self.style_gan_model.generate_maps_from_w(w)
+        img_pred = self.style_gan_model.generate_render_from_w(w)
         log = dict()
         log["GT"] = image_gt
         log["Pred"] = img_pred

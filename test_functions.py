@@ -8,8 +8,31 @@ import torch
 from torchvision import transforms
 import cv2
 
-def test_laten_walk(num_frames, bias, outdir='output_carpaint', gen_path='weights/photomat/G_512.pkl', dec_path='weights/photomat/MatUnet_512.pt'):
-    stylegan_interface.generate_lanten_w_walk(gen_path, dec_path, outdir, bias, num_frames)
+def test_latent_walk(num_frames, outdir='../diffusion-style-material-outputs/latent_walk', gen_path='weights/photomat/G_512.pkl', dec_path='weights/photomat/MatUnet_512.pt'):
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+    gen, dec, res = stylegan_interface.load_generator_decoder(gen_path, dec_path)
+    w_f = stylegan_interface.get_meaningful_w(gen)
+    w_t = stylegan_interface.get_meaningful_w(gen)
+    w_t = w_t.repeat([1, 16, 1])
+    w_f = w_f.repeat([1, 16, 1])
+    step = 1.0 / num_frames  
+    light_color, _, scale = stylegan_interface.set_param()
+    light_pos = np.array([[0, 0, 4]])
+    imgs = []
+    for i in range(num_frames+1):
+        print(f"Generating latent walk {i}/{num_frames+1}")
+        w_new = w_f * (1 - step * i) + w_t * step * i
+        img = stylegan_interface.generate_render(gen, dec, w_new, light_color, light_pos, scale, res, dir_flag=False)
+        img = (img*255).clamp(0, 255).to(torch.uint8).permute(0, 2, 3, 1).squeeze(0).cpu().numpy()
+        imgs.append(img)
+        if i == 0:
+            Image.fromarray(img, 'RGB').save(os.path.join(outdir, f"start_latent_walk.png"))
+        elif i == num_frames:
+            Image.fromarray(img, 'RGB').save(os.path.join(outdir, f"end_latent_walk.png"))
+
+    stacked_image = np.hstack(imgs)
+    Image.fromarray(stacked_image, 'RGB').save(os.path.join(outdir, f"{i}_latent_walk.png"))
 
 def test_random_render_generate(num, row, col, outdir='output_rendered', gen_path='weights/photomat/G_512.pkl', dec_path='weights/photomat/MatUnet_512.pt'):
     if not os.path.exists(outdir):
@@ -108,7 +131,7 @@ def render_test_data(in_dir='../test/in', outdir='../test/out', res = 512):
                     img = cv2.imread(tex_path)
                     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                     img_resized = cv2.resize(img_rgb, (res, res))
-                    R = to_tensor(img_resized).clamp(min=0.2, max=0.9).unsqueeze(0)
+                    R = to_tensor(img_resized).clamp(min=0.2, max=0.9).unsqueeze(0) ** 2.2
                 elif(tex.endswith('metal.jpg')):
                     img = cv2.imread(tex_path)
                     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -120,10 +143,10 @@ def render_test_data(in_dir='../test/in', outdir='../test/out', res = 512):
                     img_resized = cv2.resize(img_rgb, (res, res))
                     N = (to_tensor(img_resized) * 2 - 1).unsqueeze(0)
             light_color, _, scale = stylegan_interface.set_param(device=D.device)
-            l_pos = stylegan_interface.get_rand_light_pos(scale)
+            light_pos = np.array([[0, 0, 4]])
             dir_dir = stylegan_interface.get_rand_light_pos(scale * 4)
             dir_color=np.random.normal(0.1, 0.5) * light_color
-            rendered = stylegan_interface.render_material(N, D, R, M, light_color, l_pos, scale, 512, D.device, dir_flag=False, isMetal=True)
+            rendered = stylegan_interface.render_material(N, D, R, M, light_color, light_pos, scale, 512, D.device, dir_flag=False, isMetal=True)
             rendered = (rendered.permute(0, 2, 3, 1) * 255).clamp(0, 255).to(torch.uint8).cpu().numpy()
             rendered = rendered.squeeze(0)
             Image.fromarray(rendered, 'RGB').save(f"{outdir}/{mat}_rendered.png")
@@ -134,5 +157,5 @@ if __name__ == '__main__':
     #test_create_model('diffusion_style.model')
     #test_inference()
     #for i in range(20):
-    #test_laten_walk(10, 1, f"latent_walk_{i}")
-    render_test_data("../../TexMat", "../../TexMat_rendered")
+    test_latent_walk(10)
+    #render_test_data("../../TexMat", "../../TexMat_rendered")

@@ -57,17 +57,19 @@ def gnerate_random_render(gen, dec, bs, res, device=torch.device('cuda'), dir_fl
         return generate_render(gen, dec, w_s, light_color, l_pos, scale, res, device, dir_flag=dir_flag), w_s[:,0:1,:]
 
 def gnerate_random_render_from_batch(gen, dec, batch, res, device=torch.device('cuda'), dir_flag=False):
-    w_s = gen.mapping(batch, None, truncation_psi=1, truncation_cutoff=14)
     light_color, _, scale = set_param(device)
     dir_flag = get_ran_light_type()
     if dir_flag:
-        dir_dir = get_rand_dir()
+        l_pos = get_rand_dir()
         dir_scale = np.random.rand()*(DIR_MAX - DIR_MIN) + DIR_MIN
-        dir_color = dir_scale * light_color * DIR_DECAL
-        return generate_render(gen, dec, w_s, dir_color, dir_dir, scale, res, device, dir_flag=dir_flag), w_s[:,0:1,:]
+        light_color = dir_scale * light_color * DIR_DECAL
     else:
         l_pos = get_rand_light_pos(scale)
-        return generate_render(gen, dec, w_s, light_color, l_pos, scale, res, device, dir_flag=dir_flag), w_s[:,0:1,:]
+    return gnerate_render_from_batch(gen, dec, batch, light_color, l_pos, scale, res, device, dir_flag=dir_flag)
+
+def gnerate_render_from_batch(gen, dec, batch, light_color, l_pos, scale, res, device=torch.device('cuda'), dir_flag=False):
+    w_s = gen.mapping(batch, None, truncation_psi=1, truncation_cutoff=14)
+    return generate_render(gen, dec, w_s, light_color, l_pos, scale, res, device, dir_flag=dir_flag), w_s[:,0:1,:]
 
 def gnerate_random_render_and_fea_from_batch(gen, dec, batch, res, device=torch.device('cuda'), dir_flag=False):
     w_s = gen.mapping(batch, None, truncation_psi=1, truncation_cutoff=14)
@@ -193,25 +195,6 @@ def generate_random_carpaints(generator_pth, matunet_pth, outdir, num, device=to
 
 def get_meaningful_w(gen, bs=1, z=None, device=torch.device('cuda')):
     if z is None:
-        z = get_random_noise(bs, gen.z_dim, device)
+        z = get_random_noise(bs, gen.z_dim, None, device)
     
     return gen.mapping(z, None, truncation_psi=1, truncation_cutoff=14)[:, 0:1, :]
-    
-def generate_lanten_w_walk(generator_pth, matunet_pth, outdir, bias, num, device=torch.device('cuda')):
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
-
-    gen, dec, res = load_generator_decoder(generator_pth, matunet_pth, device=device)
-    w_f = get_meaningful_w(gen)
-    noise = torch.normal(0, 0.5, w_f.shape) * bias
-    w_t = (1 - bias) * w_f + noise.to(w_f.device)
-    w_t = w_t.repeat([1, 16, 1])
-    w_f = w_f.repeat([1, 16, 1])
-    step = 1.0 / num  
-    for i in range(num):
-        print(f"Generating latent walk {i}/{num}")
-        w_new = w_f * (1 - step * i) + w_t * step * i
-        l = [0, 0, 4.0000]
-        stacked_image = generate_carpaint(gen, dec, w_new, res, l, device)
-        stacked_image = (stacked_image*255).clamp(0, 255).to(torch.uint8).permute(0, 2, 3, 1)
-        PIL.Image.fromarray(stacked_image[0].cpu().numpy(), 'RGB').save(os.path.join(outdir, f"{i}_maps.png"))

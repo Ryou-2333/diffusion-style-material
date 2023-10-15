@@ -3,7 +3,8 @@ import torch
 import pytorch_lightning as pl
 from ldm.util import instantiate_from_config
 from ldm.models.diffusion.ddpm import default, count_params
-from utils import disabled_train
+from utils import disabled_train, exist
+import os
 
 class MappingWrapper(pl.LightningModule):
     def __init__(self, mapping_config, style_gan_config, cond_stage_config, *args, **kwargs):
@@ -12,6 +13,26 @@ class MappingWrapper(pl.LightningModule):
         count_params(self.model, verbose=True)
         self.instantiate_style_gan(style_gan_config)
         self.instantiate_cond_stage(cond_stage_config)
+
+    @torch.no_grad()
+    def init_from_ckpt(self, path, ignore_keys=list(), only_model=False):
+        sd = torch.load(path, map_location="cpu")
+        if "state_dict" in list(sd.keys()):
+            sd = sd["state_dict"]
+        keys = list(sd.keys())
+        for k in keys:
+            for ik in ignore_keys:
+                if k.startswith(ik):
+                    print("Deleting key {} from state_dict.".format(k))
+                    del sd[k]
+
+        missing, unexpected = self.load_state_dict(sd, strict=False) if not only_model else self.model.load_state_dict(
+            sd, strict=False)
+        print(f"Restored from {path} with {len(missing)} missing and {len(unexpected)} unexpected keys")
+        if len(missing) > 0:
+            print(f"Missing Keys:\n {missing}")
+        if len(unexpected) > 0:
+            print(f"\nUnexpected Keys:\n {unexpected}")
 
     def instantiate_cond_stage(self, config):
         model = instantiate_from_config(config)
@@ -73,10 +94,24 @@ class MappingWrapper(pl.LightningModule):
         batch_size = batch.shape[0]
         image_gt, w = self.style_gan_model.gnerate_render_w(batch)
         cls = self.get_learned_conditioning(image_gt).detach()
-        x = torch.randn_like(w)
+        x = torch.randn_like(w).to(self.device)
         w_pred = self.model(x, cls)
-        img_pred = self.style_gan_model.generate_maps_from_w(w_pred)
+        img_pred = self.style_gan_model.generate_render_from_w(w_pred)
         log = dict()
         log["GT"] = image_gt
         log["Pred"] = img_pred
         return log, "image"
+    
+    @torch.no_grad()
+    def generate_w(self, example, batch_size, unconditional_guidance_scale=1., seed=None, reuse_seed=False, **kwargs):
+        if reuse_seed:
+            seed = os.environ.get("PL_GLOBAL_SEED")
+        elif seed == -1:
+            seed = None
+            if exist(os.environ.get("PL_GLOBAL_SEED")):
+                del os.environ["PL_GLOBAL_SEED"]
+        pl.seed_everything(seed)
+        c = self.get_learned_conditioning(example).detach()
+        x = torch.randn((batch_size, self.model.z_dim)).to(self.device)
+        w_pred = self.model(x, c)
+        return w_pred, []

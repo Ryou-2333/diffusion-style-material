@@ -1,6 +1,7 @@
 import torch
 import pytorch_lightning as pl
 import stylegan_interface as si
+import numpy as np
 
 class StyleGANWrapper(pl.LightningModule):
     def __init__(self,
@@ -26,13 +27,24 @@ class StyleGANWrapper(pl.LightningModule):
         loss = torch.nn.functional.mse_loss(gt, pred)
         return loss
 
-    def gnerate_render_w(self, batch):
-        return si.gnerate_random_render_from_batch(self.gen, self.dec, batch, self.res, device=self.device, dir_flag=self.dir_flag)
-            
-    def generate_maps_from_w(self, w):
+    def gnerate_render_w(self, batch, random=True):
+        if random:
+            return si.gnerate_random_render_from_batch(self.gen, self.dec, batch, self.res, device=self.device, dir_flag=self.dir_flag)
+        else:
+            light_color, _, scale = si.set_param(self.device)
+            light_pos = np.array([[0, 0, 4]])
+            return si.gnerate_render_from_batch(self.gen, self.dec, batch, light_color, light_pos, scale, self.res, device=self.device, dir_flag=False)
+        
+    def generate_render_from_w(self, w, random=True):
         w = w.to(self.device)
         w_s = w.repeat([1, self.num_ws, 1])
-        return si.gnerate_random_render_from_w(self.gen, self.dec, w_s, self.res, self.device)
+        if random:
+            return si.gnerate_random_render_from_w(self.gen, self.dec, w_s, self.res, self.device)
+        else:
+            light_color, _, scale = si.set_param(self.device)
+            light_pos = np.array([[0, 0, 4]])
+            return si.generate_render(self.gen, self.dec, w_s, light_color, light_pos, scale, self.res, device=self.device, dir_flag=False)
+
     
     def gnerate_render_fea(self, batch):
         return si.gnerate_random_render_and_fea_from_batch(self.gen, self.dec, batch, self.res, device=self.device)
