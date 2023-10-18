@@ -25,7 +25,7 @@ model:
         hidden_size: 512
         context_size : 1024
         embed_size: 512
-        depth : 4
+        depth : 8
         num_head_channels: 64
         use_fp16: False
     first_stage_config:

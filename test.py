@@ -11,15 +11,17 @@ import os
 MODEL_DICTS = {
     "cls-mlp": "configs/mlp.yaml",
     "local-attn": "configs/local.yaml",
-    "full-dp10": "configs/local.yaml",
-    "style-mapping": "configs/mapping.yaml"
+    "full-dp15": "configs/local.yaml",
+    "style-mapping": "configs/mapping.yaml",
+    "unet-dp15": "configs/u_net.yaml",
 }
 
 CKPT_DICTS = {
     "cls-mlp": "checkpoints/cls-mlp/latest.ckpt",
     "local-attn": "checkpoints/local-dir/epoch-10.ckpt",
-    "full-dp10": "checkpoints/full-dir-dp15/epoch-25.ckpt",
-    "style-mapping": "checkpoints/style-mapping/latest.ckpt"
+    "full-dp15": "checkpoints/full-dir-dp15/epoch-25.ckpt",
+    "style-mapping": "checkpoints/style-mapping/latest.ckpt",
+    "unet-dp15": "checkpoints/unet-dp15/latest.ckpt",
 }
 
 gen_path = 'weights/photomat/G_512.pkl'
@@ -143,6 +145,7 @@ def save_carpaints(model, gen, dec, w_s, inters, res, output_dir, name, gs, seed
 #test_model("full-dp10", "checkpoints/full-dir-dp10/4_0_sampled.png", "checkpoints/full-dir-dp10", False, 3, 1.2)
 #test_model("full-dp10", "checkpoints/full-dir-dp10/4_0_sampled.png", "checkpoints/full-dir-dp10", False, 3, 1.3)
 #test_model("full-dp10", "checkpoints/full-dir-dp10/4_0_sampled.png", "checkpoints/full-dir-dp10", False, 3, 1.4)
-test_model("style-mapping", "checkpoints/full-dir-dp15/leather01_rendered.png", "checkpoints/style-mapping", False, 20, random_seed=True, name=0, save_material=False)
-test_model("full-dp10", "checkpoints/full-dir-dp15/leather01_rendered.png", "checkpoints/full-dir-dp15", False, 20, 2.5, random_seed=True, name=0, save_material=False)
+#test_model("cls-mlp", "checkpoints/full-dir-dp15/marble03.jpg", "checkpoints/cls-mlp", False, 20, 2.5, random_seed=False, name=0, save_material=True)
+test_model("unet-dp15", "checkpoints/full-dir-dp15/marble03.jpg", "checkpoints/unet-dp15", False, 20, 2.5, random_seed=False, name=0, save_material=True)
+test_model("full-dp15", "checkpoints/full-dir-dp15/marble03.jpg", "checkpoints/full-dir-dp15", False, 20, 2.5, random_seed=False, name=0, save_material=True)
 
